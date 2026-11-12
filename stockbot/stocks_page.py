@@ -136,13 +136,13 @@ def lead(bot, spy):
     return '<span class="%s">%s</span>' % (("ok", "ahead") if bot > spy else ("bad", "behind"))
 
 
-def vs_spy(sleeve, px, spy_now):
-    """(dollars put in, bot's gain, gain if the same dollars had gone into SPY on the same days)."""
+def vs_spy(sleeve, px, spy_now, key="spy"):
+    """(dollars put in, bot's gain, gain if the same dollars had gone into SPY / QQQ on the same days)."""
     bought = sold = spy_sh = 0.0
     for o in stockbot.ledger():
         if o.get("sleeve") != sleeve or o.get("status") not in ("filled", "partially_filled"):
             continue
-        spy = num(o.get("spy"))
+        spy = num(o.get(key))
         if not spy:
             continue
         amt = num(o.get("qty")) * num(o.get("price"))
@@ -206,19 +206,23 @@ def page(cfg):
 
     # the bot against just buying the S&P 500 with the same dollars on the same days
     spy_now = num(stockbot.load("spy.json", {}).get("price"))
-    srows, tn, tb, ts = [], 0.0, 0.0, 0.0
+    qqq_now = num(stockbot.load("qqq.json", {}).get("price"))
+    srows, tn, tb, ts, tq = [], 0.0, 0.0, 0.0, 0.0
     for name in stockbot.SLEEVES:
         net, bot, spy = vs_spy(name, px, spy_now)
+        q = vs_spy(name, px, qqq_now, "qqq")[2] if qqq_now else None
         if net <= 0:
             continue
         tn, tb, ts = tn + net, tb + bot, ts + spy
-        srows.append([name, "$%.0f" % net, money(bot), pct(bot / net * 100), money(spy), pct(spy / net * 100),
-                      lead(bot, spy)])
-    out.append("<h2>Vs just buying the S&amp;P 500 (SPY)</h2>")
+        tq = tq + q if q is not None and tq is not None else None
+        srows.append([name, "$%.0f" % net, money(bot), pct(bot / net * 100), pct(spy / net * 100), lead(bot, spy),
+                      pct(q / net * 100) if q is not None else "-", lead(bot, q) if q is not None else ""])
+    out.append("<h2>Vs the S&amp;P 500 (SPY) and the Nasdaq-100 (QQQ)</h2>")
     if srows:
-        srows.append(["<b>total</b>", "$%.0f" % tn, money(tb), pct(tb / tn * 100), money(ts), pct(ts / tn * 100),
-                      lead(tb, ts)])
-    out.append(table(["sleeve", "put in", "bot", "%", "SPY", "%", ""], srows, "waiting for the first trades"))
+        srows.append(["<b>total</b>", "$%.0f" % tn, money(tb), pct(tb / tn * 100), pct(ts / tn * 100), lead(tb, ts),
+                      pct(tq / tn * 100) if tq is not None else "-", lead(tb, tq) if tq is not None else ""])
+    out.append(table(["sleeve", "put in", "bot", "%", "SPY %", "", "QQQ %", ""], srows,
+                     "waiting for the first trades"))
     out.append('<div class="note muted">same dollars, same days. too early to mean anything until it has weeks of data.</div>')
 
     out.append("<h2>By sleeve</h2>")

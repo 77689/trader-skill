@@ -229,6 +229,46 @@ def ledger():
     return load("ledger.json", [])
 
 
+def bench_prices(sym):
+    """[(local 'YYYY-mm-dd HH:MM', price)] from Yahoo: 1-minute bars for the last 5 days,
+    daily closes before that."""
+    out = []
+    for rng, iv in (("1y", "1d"), ("5d", "1m")):
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=%s&interval=%s" % (sym, rng, iv)
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}),
+                                    timeout=30) as r:
+            d = json.loads(r.read().decode())["chart"]["result"][0]
+        off = d["meta"].get("gmtoffset") or 0
+        closes = d["indicators"]["quote"][0]["close"]
+        for ts, c in zip(d.get("timestamp") or [], closes):
+            if c:
+                t = datetime.datetime.utcfromtimestamp(ts + off)
+                out.append((t.strftime("%Y-%m-%d") + " 16:00" if iv == "1d" else t.strftime("%Y-%m-%d %H:%M"), c))
+    out.sort()
+    return out
+
+
+def bench_backfill():
+    """Give every filled order the exact SPY and QQQ price from the minute it was placed,
+    so the "vs SPY / vs Nasdaq" comparison is fair."""
+    rows = ledger()
+    need = [r for r in rows if r.get("status") in ("filled", "partially_filled") and not r.get("bench_fixed")]
+    if not need:
+        return
+    series = {b: bench_prices(b) for b in ("SPY", "QQQ")}
+    import bisect
+    for r in need:
+        key = r["time"][:16]
+        got = {}
+        for b, ser in series.items():
+            i = bisect.bisect_right(ser, (key, float("inf"))) - 1
+            if i >= 0 and ser[i][0][:10] == key[:10]:
+                got[b] = ser[i][1]
+        if len(got) == 2:
+            r["spy"], r["qqq"], r["bench_fixed"] = round(got["SPY"], 4), round(got["QQQ"], 4), True
+    save("ledger.json", rows)
+
+
 def holdings(sleeve):
     """{symbol: {qty, cost, avg}} for a sleeve, from filled orders (average cost)."""
     pos, realized = {}, 0.0
@@ -635,7 +675,8 @@ def place(sleeve, o, cfg, alpaca, prices):
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
            "notional": o.get("notional", ""), "want_qty": o.get("qty", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
            "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160],
-           "spy": float(load("spy.json", {}).get("price") or 0)}
+           "spy": float(load("spy.json", {}).get("price") or 0),
+           "qqq": float(load("qqq.json", {}).get("price") or 0)}
     if cfg["mode"] not in ("paper_auto", "paper_approve") or not alpaca.ready:
         log(sleeve, "WOULD place", body["side"], body["symbol"], body.get("notional") or body.get("qty"),
             "(watch mode)" if cfg["mode"] not in ("paper_auto", "paper_approve") else "(no Alpaca keys yet)")
@@ -1039,11 +1080,16 @@ def cycle(cfg, alpaca):
     is_open = market_open(alpaca)
     status["market_open"] = is_open
     try:
-        spy = quotes(["SPY"], path("sleeves", "spy")).get("SPY")
-        if spy:
-            save("spy.json", {"price": spy, "time": stamp()})
+        q = quotes(["SPY", "QQQ"], path("sleeves", "spy"))
+        for b in ("SPY", "QQQ"):
+            if q.get(b):
+                save(b.lower() + ".json", {"price": q[b], "time": stamp()})
     except Exception as ex:
-        log("spy quote error:", ex)
+        log("spy/qqq quote error:", ex)
+    try:
+        bench_backfill()
+    except Exception as ex:
+        log("benchmark backfill error:", ex)
     try:
         exits(cfg, alpaca, state, is_open)
     except Exception as ex:

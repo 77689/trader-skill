@@ -56,10 +56,11 @@ branch of your memebot-data repo every 5 minutes, using the login your memebot
 sync already has. `start.sh` starts it. Say "check the stock bot" and Claude
 reads that branch.
 
-## Vs the S&P 500, and 13F timing
+## Vs the S&P 500 and the Nasdaq, and 13F timing
 
-The Stocks tab compares each sleeve with putting the same dollars into SPY on
-the same days (an order's SPY price is recorded when it is placed). In the weeks
+The Stocks tab compares each sleeve with putting the same dollars into SPY and
+into QQQ (Nasdaq-100) at the same minute each order was placed (backfilled from
+Yahoo 1-minute prices). In the weeks
 13Fs are due (the 10th to the 20th of Feb, May, Aug, Nov) the bot checks for
 Berkshire's new filing every hour and replans the moment it posts; otherwise
 once a week.
