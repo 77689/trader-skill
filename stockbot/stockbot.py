@@ -135,7 +135,7 @@ def load(name, default):
 
 def save(name, obj):
     os.makedirs(DATA, exist_ok=True)
-    tmp = path(name + ".tmp")
+    tmp = path("%s.%d.tmp" % (name, __import__("threading").get_ident()))
     with open(tmp, "w") as f:
         json.dump(obj, f, indent=1)
     os.replace(tmp, path(name))
@@ -231,12 +231,59 @@ def market_open(alpaca):
         return False
 
 
+QUOTE_DIR_NAME = "quotecache"
+
+
+def prefetch(symbols, max_age=60):
+    """Download Yahoo quotes for many symbols at once (6 at a time) into a cache the
+    alerts tool reads with --offline, so it doesn't fetch them one by one."""
+    import concurrent.futures
+    qdir = path(QUOTE_DIR_NAME)
+    os.makedirs(qdir, exist_ok=True)
+
+    def one(s):
+        f = os.path.join(qdir, "yahoo-%s.json" % s.upper())
+        if os.path.exists(f) and time.time() - os.path.getmtime(f) < max_age:
+            return
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=1d&interval=1d" % s.upper().replace(".", "-")
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}),
+                                        timeout=20) as r:
+                body = r.read()
+            with open(f + ".tmp", "wb") as fh:
+                fh.write(body)
+            os.replace(f + ".tmp", f)
+        except Exception:
+            pass
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(one, sorted(set(symbols))))
+    return qdir
+
+
 def quotes(symbols, cwd):
     """Delayed prices into <cwd>/trader/prices.json. Returns {symbol: price}."""
     symbols = sorted(set(symbols))
     if not symbols:
         return {}
-    run_tool("alerts", ["quote"] + symbols + ["--write"], cwd)
+    qdir = prefetch(symbols)
+    missing = [s for s in symbols if not os.path.exists(os.path.join(qdir, "yahoo-%s.json" % s.upper()))]
+    run_tool("alerts", ["quote"] + [s for s in symbols if s not in missing] + ["--write", "--offline", qdir], cwd,
+             ok_codes=(0, 1))
+    if missing:                                         # fall back to the tool's own download
+        try:
+            with open(os.path.join(cwd, "trader", "prices.json")) as f:
+                got = json.load(f).get("prices", {})
+        except Exception:
+            got = {}
+        run_tool("alerts", ["quote"] + missing + ["--write"], cwd, ok_codes=(0, 1))
+        try:
+            with open(os.path.join(cwd, "trader", "prices.json")) as f:
+                d = json.load(f)
+            d.setdefault("prices", {}).update({k: v for k, v in got.items() if k not in d["prices"]})
+            with open(os.path.join(cwd, "trader", "prices.json"), "w") as f:
+                json.dump(d, f, indent=1)
+        except Exception:
+            pass
     try:
         with open(os.path.join(cwd, "trader", "prices.json")) as f:
             return json.load(f).get("prices", {})
@@ -1084,7 +1131,9 @@ def alerts(cfg):
                 rules.append(dict(rule, id=rid))
     with open(rules_file, "w") as f:
         json.dump({"rules": rules}, f, indent=1)
-    _, out = run_tool("alerts", ["check", "--rules", "trader/alerts.json", "--json"], d, ok_codes=(0, 1))
+    syms = sorted({r.get("symbol") for r in rules if r.get("symbol")})
+    _, out = run_tool("alerts", ["check", "--rules", "trader/alerts.json", "--json", "--offline", prefetch(syms)]
+                      if syms else ["check", "--rules", "trader/alerts.json", "--json"], d, ok_codes=(0, 1))
     res = json.loads(out)
     hist = load("alerts_log.json", {"rules": 0, "rings": []})
     for r in res.get("rings", []):
@@ -1341,16 +1390,42 @@ def cycle(cfg, alpaca):
             record_history()
         except Exception as ex:
             log("history error:", ex)
-    for name, fn in (("congress", lambda: congress(cfg, state)), ("news", lambda: news(cfg, state)),
-                     ("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg)),
-                     ("filings", lambda: filings(cfg, state))):
+    for name, fn in (("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg))):
         try:
             fn()
         except Exception as ex:
             log(name, "ERROR", ex)
             status["errors"].append("%s: %s" % (name, str(ex)[:200]))
+    status["errors"] += load("slow_errors.json", [])
     save("state.json", state)
     save("status.json", status)
+    start_slow_jobs(cfg)
+
+
+SLOW = {"thread": None}
+
+
+def slow_jobs(cfg):
+    """News, Congress and SEC filings only watch and report, and they are the slowest
+    parts, so they run in the background and never hold up trading."""
+    st, errors = load("slow_state.json", {}), []
+    for name, fn in (("congress", congress), ("news", news), ("filings", filings)):
+        try:
+            fn(cfg, st)
+        except Exception as ex:
+            log(name, "ERROR", ex)
+            errors.append("%s: %s" % (name, str(ex)[:200]))
+    save("slow_state.json", st)
+    save("slow_errors.json", errors)
+
+
+def start_slow_jobs(cfg):
+    import threading
+    t = SLOW["thread"]
+    if t and t.is_alive():
+        return
+    SLOW["thread"] = threading.Thread(target=slow_jobs, args=(cfg,), daemon=True)
+    SLOW["thread"].start()
 
 
 def main():
@@ -1369,6 +1444,8 @@ def main():
         cfg = config()
         cycle(cfg, alpaca)
         if cmd != "run":
+            if SLOW["thread"]:
+                SLOW["thread"].join()
             return
         waiting = any(p["status"] == "pending" for p in load("pending.json", []))
         time.sleep(30 if waiting else cfg["cycle_seconds"])
