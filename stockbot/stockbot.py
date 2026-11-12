@@ -197,10 +197,16 @@ def write_sleeve_config(name, cfg, budget):
     return d
 
 
+CLOCK = {}
+
+
 def market_open(alpaca):
     if alpaca.ready:
         try:
-            return bool(alpaca.call("GET", "/v2/clock").get("is_open"))
+            c = alpaca.call("GET", "/v2/clock")
+            CLOCK.clear()
+            CLOCK.update({k: c.get(k) for k in ("next_open", "next_close", "timestamp")})
+            return bool(c.get("is_open"))
         except Exception as ex:
             log("clock error:", ex)
     try:
@@ -1054,6 +1060,73 @@ def filings(cfg, state):
 
 # ---------- the loop ----------
 
+def price_now():
+    """Latest price per symbol: sleeve quote files, then Alpaca positions (fresher)."""
+    px = {}
+    for s in SLEEVES + ("exits",):
+        try:
+            with open(path("sleeves", s, "trader", "prices.json")) as f:
+                px.update(json.load(f).get("prices", {}))
+        except Exception:
+            pass
+    for sym, p in (load("account.json", {}).get("positions") or {}).items():
+        if p.get("price"):
+            px[sym] = p["price"]
+    return px
+
+
+def bench_gain(sleeve, px, bench_now, key="spy"):
+    """(dollars put in, bot's gain, gain if the same dollars had gone into SPY/QQQ at the same minutes)."""
+    bought = sold = sh = 0.0
+    for o in ledger():
+        if o.get("sleeve") != sleeve or o.get("status") not in ("filled", "partially_filled"):
+            continue
+        b = float(o.get(key) or 0)
+        if not b:
+            continue
+        amt = float(o.get("qty") or 0) * float(o.get("price") or 0)
+        if o.get("side") == "buy":
+            bought, sh = bought + amt, sh + amt / b
+        else:
+            sold, sh = sold + amt, sh - amt / b
+    hold, realized = holdings(sleeve)
+    val = sum(h["qty"] * px.get(s, h["avg"]) for s, h in hold.items())
+    net = bought - sold
+    return net, val - net, sh * bench_now - net
+
+
+def record_history():
+    """One point per cycle while the market is open, for the chart on the Stocks tab."""
+    px = price_now()
+    spy, qqq = float(load("spy.json", {}).get("price") or 0), float(load("qqq.json", {}).get("price") or 0)
+    if not (spy and qqq):
+        return
+    pt = {"t": stamp()[:16], "in": 0.0, "bot": 0.0, "spy": 0.0, "qqq": 0.0}
+    for s in SLEEVES:
+        net, bot, sg = bench_gain(s, px, spy)
+        qg = bench_gain(s, px, qqq, "qqq")[2]
+        pt[s] = round(bot / net * 100, 3) if net > 0 else None
+        pt["in"] += net
+        pt["bot"] += bot
+        pt["spy"] += sg
+        pt["qqq"] += qg
+    if pt["in"] <= 0:
+        return
+    for k in ("bot", "spy", "qqq"):
+        pt[k] = round(pt[k] / pt["in"] * 100, 3)
+    pt["in"] = round(pt["in"], 2)
+    pt["eq"] = load("account.json", {}).get("equity")
+    h = load("history.json", [])
+    if h and h[-1]["t"] == pt["t"]:
+        h[-1] = pt
+    else:
+        h.append(pt)
+    if len(h) > 4000:                  # thin out the oldest half
+        half = len(h) // 2
+        h = h[:half:3] + h[half:]
+    save("history.json", h)
+
+
 def snapshot(alpaca):
     """Save the Alpaca account for the dashboard."""
     snap = {"time": stamp(), "base": BASE, "keys": alpaca.ready}
@@ -1079,6 +1152,7 @@ def cycle(cfg, alpaca):
         reconcile(alpaca)
     is_open = market_open(alpaca)
     status["market_open"] = is_open
+    status.update({"next_open": CLOCK.get("next_open"), "next_close": CLOCK.get("next_close")})
     try:
         q = quotes(["SPY", "QQQ"], path("sleeves", "spy"))
         for b in ("SPY", "QQQ"):
@@ -1108,6 +1182,11 @@ def cycle(cfg, alpaca):
             log("approvals ERROR", ex)
             status["errors"].append("approvals: %s" % str(ex)[:200])
     snapshot(alpaca)
+    if is_open:
+        try:
+            record_history()
+        except Exception as ex:
+            log("history error:", ex)
     for name, fn in (("congress", lambda: congress(cfg, state)), ("news", lambda: news(cfg, state)),
                      ("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg)),
                      ("filings", lambda: filings(cfg, state))):

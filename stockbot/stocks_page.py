@@ -21,6 +21,40 @@ EXTRA = """
           color:#8b949e; text-decoration:none; font-size:14px; }
 .tabs a.on { color:#e6e6e6; border-color:#58a6ff; }
 .why { color:#8b949e; font-size:12px; white-space:normal; min-width:180px; }
+.lg { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
+      border-radius:50%; background:#30363d; color:#c9d1d9; font-size:10px; font-weight:700; margin-right:6px;
+      vertical-align:middle; overflow:hidden; flex:none; }
+a.coin { display:inline-flex; align-items:center; }
+.lg img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; padding:2px;
+          box-sizing:border-box; }
+.lgs .lg { margin:0 0 0 -4px; border:1px solid #161b22; }
+.cd { font-size:12px; color:#8b949e; font-weight:400; margin-top:2px; font-variant-numeric:tabular-nums; }
+.fl { border-radius:4px; transition:background 1.5s; }
+.fu { animation:fu 2s ease-out; } .fd { animation:fd 2s ease-out; }
+@keyframes fu { from { background:rgba(63,185,80,.45); } to { background:transparent; } }
+@keyframes fd { from { background:rgba(248,81,73,.45); } to { background:transparent; } }
+.chw { padding:10px; }
+.ch { width:100%; height:180px; display:block; }
+.leg { display:flex; gap:14px; font-size:12px; margin-bottom:6px; flex-wrap:wrap; }
+.leg i { display:inline-block; width:10px; height:3px; border-radius:2px; margin-right:5px; vertical-align:3px; }
+.ax { display:flex; justify-content:space-between; color:#8b949e; font-size:11px; margin-top:4px; }
+.scards { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin-top:10px; }
+.scard { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:12px; min-width:0; }
+.scard.wide { grid-column:1 / -1; border-color:#58a6ff55; }
+.sh { display:flex; justify-content:space-between; align-items:center; font-size:14px; text-transform:capitalize; }
+.big { font-size:26px; font-weight:700; margin:6px 0 0; font-variant-numeric:tabular-nums; }
+.small { font-size:12px; margin-top:2px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.chip { font-size:11px; padding:3px 8px; border-radius:999px; background:#21262d; color:#8b949e; }
+.chip.up { background:#3fb95022; color:#3fb950; } .chip.dn { background:#f8514922; color:#f85149; }
+.bud { height:5px; background:#21262d; border-radius:3px; margin-top:10px; overflow:hidden; }
+.bud i { display:block; height:100%; background:#58a6ff; }
+.rb { position:relative; width:150px; height:8px; border-radius:4px; margin:6px 0 4px;
+      background:linear-gradient(90deg, #f8514966, #30363d 40%, #3fb95066); }
+.rb.hot { box-shadow:0 0 0 1px #f85149; }
+.rb i { position:absolute; top:-3px; width:2px; height:14px; border-radius:1px; transform:translateX(-1px); }
+.rb i.c { background:#8b949e; } .rb i.n { background:#e6e6e6; width:4px; transform:translateX(-2px); }
+.rbl { display:flex; gap:10px; font-size:11px; }
 """
 
 
@@ -113,7 +147,7 @@ def amount(o):
 def sym_link(sym):
     if not re.match(r"^[A-Za-z.\-]{1,6}$", sym or ""):
         return e(sym)
-    return '<a class="coin" href="/s?sym=%s">%s</a>' % (e(sym), e(sym))
+    return '<a class="coin" href="/s?sym=%s">%s%s</a>' % (e(sym), logo(sym), e(sym))
 
 
 def price_map(account):
@@ -130,30 +164,134 @@ def price_map(account):
     return px
 
 
-def lead(bot, spy):
-    if abs(bot - spy) < 0.005:
-        return '<span class="muted">even</span>'
-    return '<span class="%s">%s</span>' % (("ok", "ahead") if bot > spy else ("bad", "behind"))
+LOGO = "https://financialmodelingprep.com/image-stock/%s.png"
 
 
-def vs_spy(sleeve, px, spy_now, key="spy"):
-    """(dollars put in, bot's gain, gain if the same dollars had gone into SPY / QQQ on the same days)."""
-    bought = sold = spy_sh = 0.0
-    for o in stockbot.ledger():
-        if o.get("sleeve") != sleeve or o.get("status") not in ("filled", "partially_filled"):
-            continue
-        spy = num(o.get(key))
-        if not spy:
-            continue
-        amt = num(o.get("qty")) * num(o.get("price"))
-        if o.get("side") == "buy":
-            bought, spy_sh = bought + amt, spy_sh + amt / spy
-        else:
-            sold, spy_sh = sold + amt, spy_sh - amt / spy
-    hold, _ = stockbot.holdings(sleeve)
-    val = sum(h["qty"] * px.get(sym, h["avg"]) for sym, h in hold.items())
-    net = bought - sold
-    return net, val - net, spy_sh * spy_now - net
+def logo(sym):
+    return ('<span class="lg">%s<img src="%s" loading="lazy" alt="" onerror="this.remove()"></span>'
+            % (e(sym[:1]), e(LOGO % sym.replace(".", "-"))))
+
+
+def flash(key, value, shown):
+    """Wraps a number so the page can flash it green/red when it changes between refreshes."""
+    try:
+        v = "%.6f" % float(value)
+    except Exception:
+        return shown
+    return '<span class="fl" data-k="%s" data-v="%s">%s</span>' % (e(key), v, shown)
+
+
+def chip(bot, bench, label):
+    if bench is None:
+        return ""
+    d = bot - bench
+    if abs(d) < 0.05:
+        return '<span class="chip">even with %s</span>' % label
+    return '<span class="chip %s">%+.1f pts %s %s</span>' % ("up" if d > 0 else "dn", d,
+                                                             "ahead of" if d > 0 else "behind", label)
+
+
+def sleeve_card(name, budget, net, bot, spy, qqq, syms, cost=0.0, realized=0.0, wide=False):
+    pc = bot / net * 100 if net > 0 else 0.0
+    sp = spy / net * 100 if net > 0 else None
+    qp = qqq / net * 100 if net > 0 and qqq is not None else None
+    cls = "pos" if pc > 0 else "neg" if pc < 0 else "muted"
+    h = ['<div class="scard%s">' % (" wide" if wide else "")]
+    h.append('<div class="sh"><b>%s</b><span class="lgs">%s</span></div>'
+             % (e(name), "".join(logo(x) for x in syms[:6])))
+    if net > 0:
+        h.append('<div class="big %s">%s</div>' % (cls, flash("s-" + name, pc, "%+.2f%%" % pc)))
+        h.append('<div class="small">%s on $%s</div>' % (money(bot), format(int(round(net)), ",")))
+        h.append('<div class="chips">%s%s</div>' % (chip(pc, sp, "SPY"), chip(pc, qp, "QQQ")))
+    else:
+        h.append('<div class="big muted">&ndash;</div><div class="small muted">no trades yet</div>')
+    if budget:
+        used = min(cost / budget * 100, 100) if budget else 0
+        h.append('<div class="bud"><i style="width:%.0f%%"></i></div><div class="small muted">$%s of $%s in'
+                 '%s</div>' % (used, format(int(round(cost)), ","), format(int(budget), ","),
+                               " &middot; realized %s" % money(realized) if realized else ""))
+    h.append("</div>")
+    return "".join(h)
+
+
+def range_bar(stop, cost, now, target):
+    """Where the price sits between its stop (left) and target (right)."""
+    hi = target or max(now, cost) * 1.10
+    lo = stop
+    span = (hi - lo) or 1.0
+    def at(x):
+        return max(0.0, min(100.0, (x - lo) / span * 100))
+    to_stop = (stop / now - 1) * 100 if now else 0
+    warn = " hot" if to_stop > -3 else ""
+    return ('<div class="rb%s"><i class="c" style="left:%.1f%%"></i><i class="n" style="left:%.1f%%"></i></div>'
+            '<div class="rbl"><span class="neg">%+.1f%% to stop</span>%s</div>'
+            % (warn, at(cost), at(now), to_stop,
+               '<span class="pos">%+.1f%% to target</span>' % ((target / now - 1) * 100) if target else ""))
+
+
+def chart(hist):
+    if len(hist) < 2:
+        return ('<div class="wrap"><div class="empty">The chart fills in as the bot runs: one point every 5 '
+                'minutes while the market is open.</div></div>')
+    W, H, P = 600.0, 200.0, 6.0
+    ser = {k: [num(p.get(k)) for p in hist] for k in ("bot", "spy", "qqq")}
+    vals = [v for k in ser for v in ser[k]] + [0.0]
+    lo, hi = min(vals), max(vals)
+    pad = (hi - lo) * 0.1 or 0.5
+    lo, hi = lo - pad, hi + pad
+    n = len(hist)
+    def xy(i, v):
+        return "%.1f,%.1f" % (P + i * (W - 2 * P) / (n - 1), P + (hi - v) * (H - 2 * P) / (hi - lo))
+    zero = P + hi * (H - 2 * P) / (hi - lo)
+    lines = []
+    for k, col, wdt in (("spy", "#8b949e", 1.5), ("qqq", "#d2a8ff", 1.5), ("bot", "#58a6ff", 2.5)):
+        lines.append('<polyline fill="none" stroke="%s" stroke-width="%s" stroke-linejoin="round" '
+                     'vector-effect="non-scaling-stroke" points="%s"/>'
+                     % (col, wdt, " ".join(xy(i, v) for i, v in enumerate(ser[k]))))
+    # day separators
+    seps, prev = [], hist[0]["t"][:10]
+    for i, p in enumerate(hist):
+        if p["t"][:10] != prev:
+            x = P + i * (W - 2 * P) / (n - 1)
+            seps.append('<line x1="%.1f" x2="%.1f" y1="0" y2="%d" stroke="#21262d" '
+                        'vector-effect="non-scaling-stroke"/>' % (x, x, H))
+            prev = p["t"][:10]
+    svg = ('<svg viewBox="0 0 %d %d" preserveAspectRatio="none" class="ch">%s'
+           '<line x1="0" x2="%d" y1="%.1f" y2="%.1f" stroke="#30363d" stroke-dasharray="4 4" '
+           'vector-effect="non-scaling-stroke"/>%s</svg>' % (W, H, "".join(seps), W, zero, zero, "".join(lines)))
+    last = hist[-1]
+    leg = ('<div class="leg"><span><i style="background:#58a6ff"></i>bot %s</span>'
+           '<span><i style="background:#8b949e"></i>SPY %s</span><span><i style="background:#d2a8ff"></i>QQQ %s</span></div>'
+           % (pct(num(last["bot"])), pct(num(last["spy"])), pct(num(last["qqq"]))))
+    axis = ('<div class="ax"><span>%s</span><span>%+.1f%% to %+.1f%%</span><span>%s</span></div>'
+            % (e(hist[0]["t"][5:16]), lo, hi, e(last["t"][5:16])))
+    return '<div class="wrap chw">%s%s%s</div>' % (leg, svg, axis)
+
+
+SCRIPT = """<script>
+(function(){
+  var old = {};
+  try { old = JSON.parse(sessionStorage.getItem('sk') || '{}'); } catch (x) {}
+  var now = {};
+  document.querySelectorAll('.fl').forEach(function(el){
+    var k = el.dataset.k, v = parseFloat(el.dataset.v);
+    now[k] = v;
+    if (k in old && old[k] !== v) { el.classList.add(v > old[k] ? 'fu' : 'fd'); }
+  });
+  try { sessionStorage.setItem('sk', JSON.stringify(now)); } catch (x) {}
+  function tick(){
+    document.querySelectorAll('.cd').forEach(function(el){
+      var t = Date.parse(el.dataset.to);
+      if (!t) { el.textContent = ''; return; }
+      var s = Math.max(0, Math.floor((t - Date.now()) / 1000));
+      var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+      el.textContent = el.dataset.pre + ' ' + (d ? d + 'd ' : '') + (d || h ? h + 'h ' : '') + m + 'm ' +
+        (d ? '' : (ss < 10 ? '0' : '') + ss + 's');
+    });
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>"""
 
 
 def page(cfg):
@@ -167,66 +305,73 @@ def page(cfg):
                % time.strftime("%b %d %I:%M:%S %p"))
 
     # sleeves
-    rows, tot_val, tot_cost, tot_real = [], 0.0, 0.0, 0.0
-    held_rows = []
+    tot_val = tot_cost = tot_real = 0.0
+    held_rows, sleeve_info = [], []
+    spy_now = num(stockbot.load("spy.json", {}).get("price"))
+    qqq_now = num(stockbot.load("qqq.json", {}).get("price"))
+    T = {"in": 0.0, "bot": 0.0, "spy": 0.0, "qqq": 0.0}
     for name in stockbot.SLEEVES:
         budget = cfg[name + "_budget"]
         hold, realized = stockbot.holdings(name)
         cost = sum(h["cost"] for h in hold.values())
         val = sum(h["qty"] * px.get(s, h["avg"]) for s, h in hold.items())
-        tot_val += val
-        tot_cost += cost
-        tot_real += realized
-        rows.append(["<b>%s</b>" % name, "$%d" % budget, "$%.0f" % cost, "$%.0f" % val,
-                     money(val - cost), money(realized), len(hold)])
-        for s, h in sorted(hold.items(), key=lambda kv: -kv[1]["qty"] * px.get(kv[0], kv[1]["avg"])):
-            p = px.get(s, h["avg"])
-            held_rows.append([name, sym_link(s), "%.3f" % h["qty"], "%.2f" % h["avg"], "%.2f" % p,
-                              "$%.0f" % (h["qty"] * p), pct((p / h["avg"] - 1) * 100 if h["avg"] else 0)])
+        tot_val, tot_cost, tot_real = tot_val + val, tot_cost + cost, tot_real + realized
+        net, bot, spy = stockbot.bench_gain(name, px, spy_now)
+        qg = stockbot.bench_gain(name, px, qqq_now, "qqq")[2] if qqq_now else None
+        if net > 0:
+            T["in"] += net; T["bot"] += bot; T["spy"] += spy
+            T["qqq"] = T["qqq"] + qg if qg is not None and T["qqq"] is not None else None
+        sleeve_info.append((name, budget, cost, val, realized, net, bot, spy, qg,
+                            sorted(hold, key=lambda k: -hold[k]["cost"])))
+        for sym, h in sorted(hold.items(), key=lambda kv: -kv[1]["qty"] * px.get(kv[0], kv[1]["avg"])):
+            p = px.get(sym, h["avg"])
+            g = (p / h["avg"] - 1) * 100 if h["avg"] else 0
+            held_rows.append([name, sym_link(sym), "%.3f" % h["qty"], "%.2f" % h["avg"],
+                              flash("p-%s-%s" % (name, sym), p, "%.2f" % p),
+                              "$%.0f" % (h["qty"] * p), flash("g-%s-%s" % (name, sym), g, pct(g))])
     day = time.strftime("%Y-%m-%d")
     placed_today = sum(1 for o in orders if str(o.get("time", "")).startswith(day) and o.get("status") != "dry_run")
     keys = account.get("keys")
     mode = ("paper auto" if cfg["mode"] == "paper_auto" and keys
             else "watch only" if cfg["mode"] != "paper_auto" else "waiting for keys")
     open_now = status.get("market_open")
+    if open_now:
+        mkt = '<span class="ok">open</span><div class="cd" data-to="%s" data-pre="closes in"></div>' % e(
+            status.get("next_close") or "")
+    elif open_now is not None:
+        mkt = '<span class="muted">closed</span><div class="cd" data-to="%s" data-pre="opens in"></div>' % e(
+            status.get("next_open") or "")
+    else:
+        mkt = "?"
+    tpl = tot_val - tot_cost + tot_real
     out.append('<div class="cards">')
     out.append('<div class="card"><div class="label">Bot</div><div class="val">%s</div></div>'
                % run_label(running("stockbot.py")))
     out.append('<div class="card"><div class="label">Mode</div><div class="val">%s</div></div>' % mode)
-    out.append('<div class="card"><div class="label">Market</div><div class="val">%s</div></div>'
-               % ('<span class="ok">open</span>' if open_now else '<span class="muted">closed</span>'
-                  if open_now is not None else "?"))
+    out.append('<div class="card"><div class="label">Market</div><div class="val">%s</div></div>' % mkt)
     out.append('<div class="card"><div class="label">Total P&amp;L</div><div class="val">%s</div></div>'
-               % money(tot_val - tot_cost + tot_real))
+               % flash("tpl", tpl, money(tpl)))
     out.append('<div class="card"><div class="label">Alpaca equity</div><div class="val">%s</div></div>'
-               % ("$%s" % format(int(account["equity"]), ",") if account.get("equity") else "-"))
+               % (flash("eq", account["equity"], "$%s" % format(int(account["equity"]), ","))
+                  if account.get("equity") else "-"))
     out.append('<div class="card"><div class="label">Orders today</div><div class="val">%d</div></div>'
                % placed_today)
     out.append("</div>")
 
-    # the bot against just buying the S&P 500 with the same dollars on the same days
-    spy_now = num(stockbot.load("spy.json", {}).get("price"))
-    qqq_now = num(stockbot.load("qqq.json", {}).get("price"))
-    srows, tn, tb, ts, tq = [], 0.0, 0.0, 0.0, 0.0
-    for name in stockbot.SLEEVES:
-        net, bot, spy = vs_spy(name, px, spy_now)
-        q = vs_spy(name, px, qqq_now, "qqq")[2] if qqq_now else None
-        if net <= 0:
-            continue
-        tn, tb, ts = tn + net, tb + bot, ts + spy
-        tq = tq + q if q is not None and tq is not None else None
-        srows.append([name, "$%.0f" % net, money(bot), pct(bot / net * 100), pct(spy / net * 100), lead(bot, spy),
-                      pct(q / net * 100) if q is not None else "-", lead(bot, q) if q is not None else ""])
-    out.append("<h2>Vs the S&amp;P 500 (SPY) and the Nasdaq-100 (QQQ)</h2>")
-    if srows:
-        srows.append(["<b>total</b>", "$%.0f" % tn, money(tb), pct(tb / tn * 100), pct(ts / tn * 100), lead(tb, ts),
-                      pct(tq / tn * 100) if tq is not None else "-", lead(tb, tq) if tq is not None else ""])
-    out.append(table(["sleeve", "put in", "bot", "%", "SPY %", "", "QQQ %", ""], srows,
-                     "waiting for the first trades"))
-    out.append('<div class="note muted">same dollars, same days. too early to mean anything until it has weeks of data.</div>')
+    # chart: the bot vs SPY vs QQQ since the first trade
+    out.append("<h2>Bot vs SPY vs QQQ</h2>")
+    out.append(chart(stockbot.load("history.json", [])))
 
-    out.append("<h2>By sleeve</h2>")
-    out.append(table(["sleeve", "budget", "in", "now", "open P&L", "realized", "stocks"], rows))
+    # one card per sleeve
+    out.append('<div class="scards">')
+    if T["in"] > 0:
+        out.append(sleeve_card("total", None, T["in"], T["bot"], T["spy"], T["qqq"], [], wide=True))
+    for name, budget, cost, val, realized, net, bot, spy, qg, syms in sleeve_info:
+        out.append(sleeve_card(name, budget, net, bot, spy, qg, syms, cost=cost, realized=realized))
+    out.append("</div>")
+    out.append('<div class="note muted">vs = same dollars put into SPY / QQQ at the same minute. '
+               'Means little until there are weeks of data.</div>')
+
     out.append("<h2>Holdings</h2>")
     out.append(table(["sleeve", "stock", "shares", "avg", "now", "value", "P&L"], held_rows, "no holdings yet"))
 
@@ -242,15 +387,15 @@ def page(cfg):
             tgt = h["avg"] + x["target_r"] * x["r"] if x.get("target_r") and x.get("r") else None
             kind = {"fixed": "fixed %d%% under cost" % cfg.get(name + "_stop_pct", 15), "be1r": "to cost at +1R",
                     "trail10": "trails 10-day low"}.get(x.get("rule"), x.get("rule", ""))
-            rows.append([name, sym_link(sym), "%.2f" % h["avg"], "%.2f" % p, '<span class="bad">%.2f</span>' % x["stop"],
-                         pct((x["stop"] / p - 1) * 100 if p else 0),
+            rows.append([name, sym_link(sym), range_bar(x["stop"], h["avg"], p, tgt),
+                         '<span class="bad">%.2f</span>' % x["stop"],
                          '<span class="ok">%.2f</span>' % tgt if tgt else '<span class="muted">-</span>',
                          '<span class="why">%s</span>' % e(kind)])
     out.append("<h2>Stops &amp; targets</h2>")
     paused = stockbot.paused(cfg)
     if paused:
         out.append('<div class="note bad">2 stop-losses hit today: no new buys until tomorrow.</div>')
-    out.append(table(["sleeve", "stock", "cost", "now", "stop", "to stop", "target", "rule"], rows,
+    out.append(table(["sleeve", "stock", "stop &larr; now &rarr; target", "stop", "target", "rule"], rows,
                      "no positions yet"))
     hits = [x for x in stockbot.load("stopouts.json", []) if x.get("time", "")[:10] >= time.strftime(
         "%Y-%m-%d", time.localtime(time.time() - 14 * 86400))]
@@ -451,4 +596,4 @@ def render(pathname, query, css):
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>" + refresh +
             "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" + "".join(body) +
-            "</body></html>")
+            SCRIPT + "</body></html>")
