@@ -30,6 +30,7 @@ import time
 import urllib.error
 import urllib.request
 
+import quality
 import signals
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -67,12 +68,20 @@ DEFAULTS = {
     "berkshire_budget": 2500,
     "screener_budget": 2500,
     "swing_budget": 2500,          # EMA44 pullback trades (from the strategy books)
+    "momentum_budget": 2500,       # monthly: top 3 sector ETFs by 12-1 month return
+    "trend_budget": 2500,          # monthly: SPY/EFA/IEF/GLD, each only above its 10-month average
+    "momentum_universe": ["XLK", "XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE", "XLC"],
+    "momentum_top": 3,
+    "trend_assets": ["SPY", "EFA", "IEF", "GLD"],
+    "cash_etf": "BIL",             # where trend parks money when an asset is below its average
     "breakout_budget": 2500,       # 52-week-high breakouts, confirmed
     "trade_risk_pct": 1.0,         # swing/breakout: lose at most this % of the sleeve per trade
     "trade_max_position_pct": 25,  # ... and never more than this % of the sleeve in one stock
     "trade_max_positions": 6,
     "berkshire_stop_pct": 0,       # off: copying Buffett means holding through drops
-    "screener_stop_pct": 15,       # sell a screener stock 15% under cost (0 = off)
+    "screener_stop_pct": 0,        # off: research says stops hurt slow quality/value holdings
+    "quality_universe": quality.UNIVERSE,
+    "quality_top": 10,
     "core_cooldown_days": 30,      # ... and don't buy it back for this many days
     "trade_cooldown_days": 5,      # swing/breakout: wait this long before re-entering a stock
     "pause_after_stops": 2,        # this many losing stops in a day = no new buys until tomorrow
@@ -80,7 +89,7 @@ DEFAULTS = {
     "max_position_pct": 40,        # per sleeve, so 5 stocks can fill the sleeve
     "max_order_usd": 2000,
     "min_order_usd": 5,
-    "max_orders_per_day": 12,
+    "max_orders_per_day": 40,
     "rebalance_band_pct": 5,
     "screener_top": 5,
     "universe": UNIVERSE,
@@ -91,7 +100,8 @@ DEFAULTS = {
 }
 
 
-SLEEVES = ("berkshire", "screener", "swing", "breakout")
+SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend")
+MONTHLY = ("momentum", "trend")     # rebalance once a month, no stop-losses
 CORE = ("berkshire", "screener")
 
 
@@ -133,9 +143,13 @@ def save(name, obj):
 
 def config():
     cfg = dict(DEFAULTS)
-    cfg.update(load("config.json", {}))
+    saved = load("config.json", {})
+    cfg.update(saved)
     if not os.path.exists(path("config.json")):
         save("config.json", cfg)
+    elif saved.get("max_orders_per_day") == 12:     # old default, too low for six sleeves
+        saved["max_orders_per_day"] = cfg["max_orders_per_day"] = DEFAULTS["max_orders_per_day"]
+        save("config.json", saved)
     return cfg
 
 
@@ -180,7 +194,7 @@ def sleeve_dir(name):
     return path("sleeves", name)
 
 
-def write_sleeve_config(name, cfg, budget):
+def write_sleeve_config(name, cfg, budget, **over):
     d = sleeve_dir(name)
     os.makedirs(os.path.join(d, "trader"), exist_ok=True)
     c = {
@@ -192,6 +206,7 @@ def write_sleeve_config(name, cfg, budget):
         "rebalance_band_pct": cfg["rebalance_band_pct"],
         "sec_user_agent": cfg["sec_user_agent"],
     }
+    c.update(over)
     with open(os.path.join(d, "trader", "config.json"), "w") as f:
         json.dump(c, f, indent=1)
     return d
@@ -235,6 +250,9 @@ def ledger():
     return load("ledger.json", [])
 
 
+BENCH = ("SPY", "QQQ", "QUAL")   # QUAL = quality-factor ETF, the fair yardstick for the Berkshire copy
+
+
 def bench_prices(sym):
     """[(local 'YYYY-mm-dd HH:MM', price)] from Yahoo: 1-minute bars for the last 5 days,
     daily closes before that."""
@@ -258,10 +276,11 @@ def bench_backfill():
     """Give every filled order the exact SPY and QQQ price from the minute it was placed,
     so the "vs SPY / vs Nasdaq" comparison is fair."""
     rows = ledger()
-    need = [r for r in rows if r.get("status") in ("filled", "partially_filled") and not r.get("bench_fixed")]
+    need = [r for r in rows if r.get("status") in ("filled", "partially_filled")
+            and not (r.get("bench_fixed") and all(r.get(b.lower()) for b in BENCH))]
     if not need:
         return
-    series = {b: bench_prices(b) for b in ("SPY", "QQQ")}
+    series = {b: bench_prices(b) for b in BENCH}
     import bisect
     for r in need:
         key = r["time"][:16]
@@ -270,8 +289,10 @@ def bench_backfill():
             i = bisect.bisect_right(ser, (key, float("inf"))) - 1
             if i >= 0 and ser[i][0][:10] == key[:10]:
                 got[b] = ser[i][1]
-        if len(got) == 2:
-            r["spy"], r["qqq"], r["bench_fixed"] = round(got["SPY"], 4), round(got["QQQ"], 4), True
+        if len(got) == len(BENCH):
+            for b in BENCH:
+                r[b.lower()] = round(got[b], 4)
+            r["bench_fixed"] = True
     save("ledger.json", rows)
 
 
@@ -308,9 +329,9 @@ def first_buy(sleeve, symbol):
 
 
 def write_portfolio(sleeve, budget, d):
-    hold, _ = holdings(sleeve)
+    hold, realized = holdings(sleeve)
     spent = sum(h["cost"] for h in hold.values())
-    pf = {"cash": round(max(budget - spent, 0), 2), "positions": []}
+    pf = {"cash": round(max(budget + realized - spent, 0), 2), "positions": []}
     for s, h in hold.items():
         pf["positions"].append({"ticker": s, "shares": round(h["qty"], 6), "lots": [
             {"id": s + "-1", "date": first_buy(sleeve, s), "shares": round(h["qty"], 6),
@@ -360,12 +381,17 @@ def plan_and_trade(sleeve, budget, cfg, alpaca, prices_for):
     if not hold:
         run_tool("budget", ["--write"], d)
     else:
-        run_tool("rebalance", ["--band", cfg["rebalance_band_pct"], "--write"], d)
+        run_tool("rebalance", ["--band", cfg["rebalance_band_pct"], "--write", "--sell-untracked"], d,
+                 ok_codes=(0, 1))  # 1 = all in band; sells what the 13F / screen dropped
     if not os.path.exists(orders_file):
         log(sleeve, "no trades needed")
         return 0
     with open(orders_file) as f:
         orders = json.load(f).get("orders", [])
+    for o in orders:      # a sell of (nearly) everything sells exactly what the sleeve holds, no dust
+        h = hold.get(o["symbol"])
+        if o["side"] == "sell" and h and o.get("qty") and float(o["qty"]) >= h["qty"] * 0.995:
+            o["qty"] = ("%.6f" % (math.floor(h["qty"] * 1e6) / 1e6)).rstrip("0").rstrip(".")
     cool = cooling(sleeve)
     skipped = [o["symbol"] for o in orders if o["side"] == "buy" and o["symbol"] in cool]
     if skipped:
@@ -448,7 +474,7 @@ def exits(cfg, alpaca, state, is_open):
         return
     for s in SLEEVES:                                   # make sure every holding has a stop
         book = st.setdefault(s, {})
-        if s in CORE and not cfg.get(s + "_stop_pct"):
+        if s in MONTHLY or (s in CORE and not cfg.get(s + "_stop_pct")):
             if book:
                 book.clear()
                 changed = True
@@ -536,6 +562,111 @@ def exits(cfg, alpaca, state, is_open):
         log("%d losing stops today: no new buys until tomorrow (the books' 2-stop rule)" % cfg["pause_after_stops"])
         notify("stockbot paused", "2 stop-losses hit today, no new buys until tomorrow")
         state["pause_said"] = today()
+
+
+# ---------- momentum and trend: monthly ETF sleeves (from the research) ----------
+
+def month_closes(rows, month):
+    """Daily rows before `month` (YYYY-MM) -> (daily closes, month-end closes)."""
+    rows = [r for r in rows if r[0][:7] < month]
+    daily = [r[4] for r in rows]
+    ends = [r[4] for i, r in enumerate(rows) if i + 1 == len(rows) or rows[i + 1][0][:7] != r[0][:7]]
+    return daily, ends
+
+
+def momentum_weights(cfg, bars, month):
+    """Top N by 12-1 month return (price 1 month ago vs 12 months ago), equal weight."""
+    rank = []
+    for t in cfg["momentum_universe"]:
+        daily, _ = month_closes(bars.get(t, []), month)
+        if len(daily) < 253:
+            continue
+        r = daily[-22] / daily[-253] - 1
+        rank.append({"symbol": t, "ret_12_1": round(r * 100, 2)})
+    rank.sort(key=lambda x: -x["ret_12_1"])
+    top = rank[:cfg["momentum_top"]]
+    for i, x in enumerate(rank):
+        x["rank"], x["hold"] = i + 1, i < cfg["momentum_top"]
+    w = {x["symbol"]: 1.0 / len(top) for x in top} if top else {}
+    return w, rank
+
+
+def trend_weights(cfg, bars, month):
+    """Each asset gets an equal slice; held only if its last month-end close is above
+    its 10-month average, otherwise that slice goes to T-bills."""
+    w, rows = {}, []
+    n = len(cfg["trend_assets"])
+    for t in cfg["trend_assets"]:
+        _, ends = month_closes(bars.get(t, []), month)
+        if len(ends) < 10:
+            continue
+        sma = sum(ends[-10:]) / 10
+        up = ends[-1] > sma
+        k = t if up else cfg["cash_etf"]
+        w[k] = w.get(k, 0) + 1.0 / n
+        rows.append({"symbol": t, "close": round(ends[-1], 2), "sma10": round(sma, 2), "hold": up,
+                     "gap_pct": round((ends[-1] / sma - 1) * 100, 2)})
+    return w, rows
+
+
+def monthly_sleeve(name, cfg, alpaca, state, is_open):
+    budget = cfg[name + "_budget"]
+    d = write_sleeve_config(name, cfg, budget, cash_buffer_pct=2, max_position_pct=100)
+    month = today()[:7]
+    if not is_open or state.get(name + "_month") == month:
+        return
+    syms = cfg["momentum_universe"] if name == "momentum" else cfg["trend_assets"] + [cfg["cash_etf"]]
+    b = signals.bars(syms, path("bars_adj"), today(), adjusted=True)
+    if len([s for s in syms if b.get(s)]) < len(syms) * 0.7:
+        log(name, "price history missing, will retry")
+        return
+    w, plan = (momentum_weights if name == "momentum" else trend_weights)(cfg, b, month)
+    save(name + "_plan.json", {"time": stamp(), "month": month, "weights": w, "rows": plan})
+    if not w:
+        log(name, "no signal, will retry")
+        return
+    hold, realized = holdings(name)
+    px = quotes(sorted(set(w) | set(hold)), d)
+    mv = sum(h["qty"] * px.get(s, h["avg"]) for s, h in hold.items())
+    value = budget + realized - sum(h["cost"] for h in hold.values()) + mv
+    invest = value * 0.97          # 2% buffer in the risk check, plus room for rounding
+    sells, buys = [], []
+    for s in sorted(set(w) | set(hold)):
+        p = px.get(s)
+        if not p:
+            continue
+        have = hold.get(s, {}).get("qty", 0.0) * p
+        want = invest * w.get(s, 0.0)
+        diff = want - have
+        if s not in w and have > 0:
+            q = math.floor(hold[s]["qty"] * 1e6) / 1e6
+            sells.append({"symbol": s, "side": "sell", "qty": ("%.6f" % q).rstrip("0").rstrip("."),
+                          "type": "market", "time_in_force": "day", "why": "%s: no longer picked for %s" % (name, month)})
+        elif diff < -max(25, want * 0.05):
+            sells.append({"symbol": s, "side": "sell", "notional": "%.2f" % -diff, "type": "market",
+                          "time_in_force": "day", "why": "%s: trim to target for %s" % (name, month)})
+        elif diff > max(25, want * 0.05):
+            buys.append({"symbol": s, "side": "buy", "notional": "%.2f" % min(diff, cfg["max_order_usd"]),
+                         "type": "market", "time_in_force": "day",
+                         "why": "%s: %.0f%% target for %s" % (name, w[s] * 100, month)})
+    log(name, "%s targets:" % month, ", ".join("%s %.0f%%" % (s, x * 100) for s, x in sorted(w.items())))
+    if (sells or buys) and orders_today() + len(sells) + len(buys) > cfg["max_orders_per_day"]:
+        log(name, "would pass the daily order limit, trying again tomorrow")
+        return
+    if sells or buys:
+        write_portfolio(name, budget, d)
+        risk_and_place(name, sells + buys, d, cfg, alpaca, px, exit_orders=bool(sells and not buys))
+    else:
+        log(name, "already on target")
+    state[name + "_month"] = month
+
+
+def momentum(cfg, alpaca, state, is_open):
+    monthly_sleeve("momentum", cfg, alpaca, state, is_open)
+
+
+def trend(cfg, alpaca, state, is_open):
+    monthly_sleeve("trend", cfg, alpaca, state, is_open)
 
 
 # ---------- swing and breakout: daily-bar trades with stops ----------
@@ -749,35 +880,57 @@ def berkshire(cfg, alpaca, state, is_open):
 
 
 def screener(cfg, alpaca, state, is_open):
+    """Quality + Value (Novy-Marx): rank ~120 large companies by gross profit / assets and
+    earnings yield, hold the top 10 equally, re-rank once a quarter. No stop-loss."""
     d = write_sleeve_config("screener", cfg, cfg["screener_budget"])
     tdir = os.path.join(d, "trader")
-    rules = os.path.join(tdir, "rules.json")
-    if not os.path.exists(rules):
-        with open(os.path.join(REPO, "trader-screener", "rules.example.json")) as src, open(rules, "w") as dst:
-            dst.write(src.read())
-    if due(state, "screener_refresh", cfg["refresh_days"]) or not os.path.exists(
-            os.path.join(tdir, "shortlist.json")):
-        run_tool("analyst", cfg["universe"] + ["--no-filings", "--metrics", "trader/metrics.json"], d)
-        quotes(cfg["universe"], d)
-        run_tool("screener", ["trader/metrics.json", "--rules", "trader/rules.json", "--prices",
-                              "trader/prices.json", "--top", cfg["screener_top"],
-                              "--out", "trader/shortlist.json"], d)
-        state["screener_refresh"] = today()
-        log("screener: reran the screen on %d stocks" % len(cfg["universe"]))
-    with open(os.path.join(tdir, "shortlist.json")) as f:
-        passed = [p["ticker"] for p in json.load(f).get("passed", [])][:cfg["screener_top"]]
-    if not passed:
-        if state.get("screener_none") != today():
-            log("screener: no stock passes the rules right now, holding cash")
-            state["screener_none"] = today()
+    y, m = now().year, now().month
+    quarter = "%d-Q%d" % (y, (m - 1) // 3 + 1)
+    if state.get("screener_quarter") != quarter or not os.path.exists(os.path.join(tdir, "shortlist.json")):
+        uni = cfg["quality_universe"]
+        b = signals.bars(uni, path("bars"), today())
+        px = {t: rows[-1][4] for t, rows in b.items() if rows}
+        rows, year = quality.metrics(uni, px, cfg["sec_user_agent"], path("sec_cache"))
+        if not rows:
+            raise RuntimeError("no SEC numbers came back, will retry")
+        with open(os.path.join(tdir, "metrics.json"), "w") as f:
+            json.dump({"as_of": today(), "source": "SEC XBRL frames CY%s" % year, "companies": rows}, f, indent=1)
+        spec = dict(quality.RULES, top=cfg["quality_top"] + 5)
+        with open(os.path.join(tdir, "quality_rules.json"), "w") as f:
+            json.dump(spec, f, indent=1)
+        run_tool("screener", ["trader/metrics.json", "--rules", "trader/quality_rules.json", "--top",
+                              spec["top"], "--out", "trader/shortlist.json"], d, ok_codes=(0, 1))
+        with open(os.path.join(tdir, "shortlist.json")) as f:
+            cands = [p["ticker"] for p in json.load(f).get("passed", [])][:spec["top"]]
+        # fresher check with the analyst tool: skip a pick whose last 4 quarters lost money
+        fresh = os.path.join(tdir, "fresh.json")
+        if os.path.exists(fresh):
+            os.remove(fresh)
+        if cands:
+            run_tool("analyst", cands + ["--no-filings", "--metrics", "trader/fresh.json"], d, ok_codes=(0, 1))
+        try:
+            with open(fresh) as f:
+                ttm = {c["ticker"]: c.get("eps_ttm") for c in json.load(f).get("companies", [])}
+        except Exception:
+            ttm = {}
+        picks = [t for t in cands if ttm.get(t) is None or ttm[t] > 0][:cfg["quality_top"]]
+        dropped = [t for t in cands[:cfg["quality_top"]] if t not in picks]
+        save("screener_picks.json", {"time": stamp(), "quarter": quarter, "fiscal_year": year, "picks": picks,
+                                     "dropped_for_losses": [t for t in dropped if ttm.get(t) is not None and ttm[t] <= 0]})
+        state["screener_quarter"] = quarter
+        state.pop("screener_plan", None)
+        log("screener: Quality + Value re-ranked %d companies (CY%s numbers), picks: %s"
+            % (len(rows), year, ", ".join(picks)))
+    picks = load("screener_picks.json", {}).get("picks", [])
+    if not picks:
         return
-    w = round(100.0 / len(passed), 2)
+    w = round(100.0 / len(picks), 2)
     with open(os.path.join(tdir, "targets.json"), "w") as f:
-        json.dump({"source": "screener shortlist", "as_of": today(),
-                   "weights": [{"ticker": t, "name": t, "weight": w} for t in passed]}, f, indent=1)
+        json.dump({"source": "Quality + Value", "as_of": today(),
+                   "weights": [{"ticker": t, "name": t, "weight": w} for t in picks]}, f, indent=1)
     if not is_open or state.get("screener_plan") == today():
         return
-    plan_and_trade("screener", cfg["screener_budget"], cfg, alpaca, passed)
+    plan_and_trade("screener", cfg["screener_budget"], cfg, alpaca, picks)
     state["screener_plan"] = today()
 
 
@@ -1154,8 +1307,8 @@ def cycle(cfg, alpaca):
     status["market_open"] = is_open
     status.update({"next_open": CLOCK.get("next_open"), "next_close": CLOCK.get("next_close")})
     try:
-        q = quotes(["SPY", "QQQ"], path("sleeves", "spy"))
-        for b in ("SPY", "QQQ"):
+        q = quotes(list(BENCH), path("sleeves", "spy"))
+        for b in BENCH:
             if q.get(b):
                 save(b.lower() + ".json", {"price": q[b], "time": stamp()})
     except Exception as ex:
@@ -1169,7 +1322,8 @@ def cycle(cfg, alpaca):
     except Exception as ex:
         log("stops", "ERROR", ex)
         status["errors"].append("stops: %s" % str(ex)[:200])
-    for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout)):
+    for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout),
+                     ("momentum", momentum), ("trend", trend)):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:

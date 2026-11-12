@@ -219,18 +219,23 @@ def chip(bot, bench, label):
                                                              "ahead of" if d > 0 else "behind", label)
 
 
-def sleeve_card(name, budget, net, bot, spy, qqq, syms, cost=0.0, realized=0.0, wide=False):
+def sleeve_card(name, budget, net, bot, spy, qqq, syms, cost=0.0, realized=0.0, wide=False, qual=None):
     pc = bot / net * 100 if net > 0 else 0.0
     sp = spy / net * 100 if net > 0 else None
     qp = qqq / net * 100 if net > 0 and qqq is not None else None
     cls = "pos" if pc > 0 else "neg" if pc < 0 else "muted"
     h = ['<div class="scard%s">' % (" wide" if wide else "")]
     h.append('<div class="sh"><b>%s</b><span class="lgs">%s</span></div>'
-             % (e(name), "".join(logo(x) for x in syms[:6])))
+             % (e(name), "".join(logo(x) for x in syms[:4])))
     if net > 0:
         h.append('<div class="big %s">%s</div>' % (cls, flash("s-" + name, pc, "%+.2f%%" % pc)))
         h.append('<div class="small">%s on $%s</div>' % (money(bot), format(int(round(net)), ",")))
-        h.append('<div class="chips">%s%s</div>' % (chip(pc, sp, "SPY"), chip(pc, qp, "QQQ")))
+        ql = qual / net * 100 if net > 0 and qual is not None else None
+        h.append('<div class="chips">%s%s%s</div>' % (chip(pc, sp, "SPY"), chip(pc, qp, "QQQ"),
+                                                    chip(pc, ql, "QUAL") if ql is not None else ""))
+        if ql is not None:
+            h.append('<div class="small muted">QUAL test: if this trails the quality ETF after a year, '
+                     'just hold QUAL instead.</div>')
     else:
         h.append('<div class="big muted">&ndash;</div><div class="small muted">no trades yet</div>')
     if budget:
@@ -341,6 +346,7 @@ def page(cfg):
     held_rows, sleeve_info = [], []
     spy_now = num(stockbot.load("spy.json", {}).get("price"))
     qqq_now = num(stockbot.load("qqq.json", {}).get("price"))
+    qual_now = num(stockbot.load("qual.json", {}).get("price"))
     T = {"in": 0.0, "bot": 0.0, "spy": 0.0, "qqq": 0.0}
     for name in stockbot.SLEEVES:
         budget = cfg[name + "_budget"]
@@ -350,11 +356,12 @@ def page(cfg):
         tot_val, tot_cost, tot_real = tot_val + val, tot_cost + cost, tot_real + realized
         net, bot, spy = stockbot.bench_gain(name, px, spy_now)
         qg = stockbot.bench_gain(name, px, qqq_now, "qqq")[2] if qqq_now else None
+        ql = stockbot.bench_gain(name, px, qual_now, "qual")[2] if qual_now and name == "berkshire" else None
         if net > 0:
             T["in"] += net; T["bot"] += bot; T["spy"] += spy
             T["qqq"] = T["qqq"] + qg if qg is not None and T["qqq"] is not None else None
         sleeve_info.append((name, budget, cost, val, realized, net, bot, spy, qg,
-                            sorted(hold, key=lambda k: -hold[k]["cost"])))
+                            sorted(hold, key=lambda k: -hold[k]["cost"]), ql))
         for sym, h in sorted(hold.items(), key=lambda kv: -kv[1]["qty"] * px.get(kv[0], kv[1]["avg"])):
             p = px.get(sym, h["avg"])
             g = (p / h["avg"] - 1) * 100 if h["avg"] else 0
@@ -398,8 +405,8 @@ def page(cfg):
     out.append('<div class="scards">')
     if T["in"] > 0:
         out.append(sleeve_card("total", None, T["in"], T["bot"], T["spy"], T["qqq"], [], wide=True))
-    for name, budget, cost, val, realized, net, bot, spy, qg, syms in sleeve_info:
-        out.append(sleeve_card(name, budget, net, bot, spy, qg, syms, cost=cost, realized=realized))
+    for name, budget, cost, val, realized, net, bot, spy, qg, syms, ql in sleeve_info:
+        out.append(sleeve_card(name, budget, net, bot, spy, qg, syms, cost=cost, realized=realized, qual=ql))
     out.append("</div>")
     out.append('<div class="note muted">vs = same dollars put into SPY / QQQ at the same minute. '
                'Means little until there are weeks of data.</div>')
@@ -445,6 +452,19 @@ def page(cfg):
         out.append("<h2>%s</h2>" % title)
         out.append(table(["stock", "stop", "why"], rows,
                          "no setups %s" % ("on " + e(sg["time"][:10]) if sg.get("time") else "checked yet")))
+
+    # monthly ETF sleeves
+    mp = stockbot.load("momentum_plan.json", {})
+    rows = [[str(x["rank"]), sym_link(x["symbol"]), pct(x["ret_12_1"]),
+             '<span class="ok">HOLD</span>' if x["hold"] else '<span class="muted">-</span>'] for x in mp.get("rows", [])]
+    out.append("<h2>Momentum picks (%s)</h2>" % e(mp.get("month", "next market day")))
+    out.append(table(["#", "sector ETF", "12-1 mo return", ""], rows, "picks appear on its first market day"))
+    tp = stockbot.load("trend_plan.json", {})
+    rows = [[sym_link(x["symbol"]), "%.2f" % x["close"], "%.2f" % x["sma10"], pct(x["gap_pct"]),
+             '<span class="ok">HOLD</span>' if x["hold"] else '<span class="bad">T-bills</span>'] for x in tp.get("rows", [])]
+    out.append("<h2>Trend signals (%s)</h2>" % e(tp.get("month", "next market day")))
+    out.append(table(["asset", "month-end", "10-mo avg", "vs avg", ""], rows, "signals appear on its first market day"))
+    out.append('<div class="note muted">both rebalance on the first market day of each month.</div>')
 
     # berkshire targets
     rows = []

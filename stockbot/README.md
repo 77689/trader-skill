@@ -100,3 +100,16 @@ link on your Stocks tab and in a notification. People using the link only get
 the Stocks and Filings tabs, read-only (no Memecoins tab, no approve buttons);
 your phone at localhost still sees everything. The link changes whenever the
 tunnel restarts. `share.sh stop` turns it off.
+
+## Research-based sleeves (added after a literature review)
+
+| sleeve | rule | why |
+| --- | --- | --- |
+| momentum | 1st market day of each month: rank the 11 sector ETFs by 12-1 month return, hold the top 3 equally | cross-sectional momentum replicates (Hou, Xue & Zhang 2020); sector ETFs avoid survivorship bias. Backtest 2000-2026: 9.8%/yr vs SPY 8.4%, max drop -40% vs -51% |
+| trend | 1st market day of each month: SPY, EFA, IEF, GLD a quarter each, each held only above its 10-month average, else BIL | time-series momentum (Moskowitz, Ooi & Pedersen; Faber). Backtest 2005-2026: 6.7%/yr vs SPY 11.2%, max drop -9% vs -51% |
+| screener | once a quarter: rank ~120 large non-financial companies by gross profit / assets plus earnings yield (SEC XBRL frames), hold the top 10, no stop-loss | quality + value (Novy-Marx 2013) works best among the largest stocks. The analyst tool double-checks the picks' last four quarters |
+
+The Berkshire sleeve is also compared with QUAL (quality-factor ETF): research
+says most of Buffett's edge is that factor, so if the copy trails QUAL after a
+year, holding QUAL is the simpler choice. Stocks the 13F or the screen drop are
+sold (`--sell-untracked`). Monthly sleeves have no stop-losses.

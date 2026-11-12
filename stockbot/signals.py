@@ -26,23 +26,27 @@ import urllib.request
 UA = {"User-Agent": "Mozilla/5.0 (stockbot)"}
 
 
-def fetch(sym):
+def fetch(sym, adjusted=False):
     y = sym.replace(".", "-")
     url = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=2y&interval=1d" % y
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as r:
         d = json.loads(r.read().decode())["chart"]["result"][0]
     q = d["indicators"]["quote"][0]
+    adj = (d["indicators"].get("adjclose") or [{}])[0].get("adjclose") if adjusted else None
     rows = []
     for i, ts in enumerate(d.get("timestamp") or []):
         o, h, l, c, v = q["open"][i], q["high"][i], q["low"][i], q["close"][i], q["volume"][i]
         if None in (o, h, l, c, v) or c <= 0:
             continue
+        if adj and adj[i]:                       # dividends included (matters for bond/T-bill ETFs)
+            f = adj[i] / c
+            o, h, l, c = o * f, h * f, l * f, adj[i]
         day = datetime.datetime.utcfromtimestamp(ts + (d["meta"].get("gmtoffset") or 0)).strftime("%Y-%m-%d")
         rows.append([day, o, h, l, c, v])
     return rows
 
 
-def bars(symbols, cache_dir, today):
+def bars(symbols, cache_dir, today, adjusted=False):
     """{symbol: [[date, o, h, l, c, v], ...]} refreshed once per day."""
     os.makedirs(cache_dir, exist_ok=True)
     out = {}
@@ -57,7 +61,7 @@ def bars(symbols, cache_dir, today):
         except Exception:
             pass
         try:
-            rows = fetch(s)
+            rows = fetch(s, adjusted)
             with open(f, "w") as fh:
                 json.dump({"fetched": today, "rows": rows}, fh)
             out[s] = rows
