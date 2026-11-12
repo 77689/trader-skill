@@ -124,3 +124,12 @@ delisting notice, an auditor change or past financials no longer being
 reliable. A red-flag 8-K on something you already hold sends a notification.
 Headlines are shown but don't block trades: Yahoo's per-ticker feed mixes in
 other companies' stories. ETF sleeves skip the gate. `news_gate_days` (0 = off).
+
+## Stops outside market hours
+
+Alpaca trades US stocks 24/5 (pre-market 4-9:30, after-hours 4-8 PM, overnight
+8 PM-4 AM, New York time). Stop-losses are checked in all of those sessions
+using Alpaca's latest-trade data (IEX feed, overnight feed at night). Off-hours
+stop sales are limit orders 2% under the last trade (`after_hours_limit_pct`),
+since only limit orders are allowed then. Targets and new buys still wait for
+the regular session. `stops_after_hours: false` turns it off.

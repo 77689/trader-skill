@@ -85,6 +85,8 @@ DEFAULTS = {
     "core_cooldown_days": 30,      # ... and don't buy it back for this many days
     "trade_cooldown_days": 5,      # swing/breakout: wait this long before re-entering a stock
     "pause_after_stops": 2,
+    "stops_after_hours": True,     # check stop-losses pre-market, after-hours and overnight too (limit sells)
+    "after_hours_limit_pct": 2,    # off-hours stop sells are limit orders this % under the last trade
     "news_gate_days": 5,           # skip buying a stock with a red-flag SEC filing in the last N days (0 = off)        # this many losing stops in a day = no new buys until tomorrow
     "cash_buffer_pct": 10,
     "max_position_pct": 40,        # per sleeve, so 5 stocks can fill the sleeve
@@ -156,6 +158,9 @@ def config():
 
 # ---------- Alpaca (paper only) ----------
 
+DATA_BASE = os.environ.get("ALPACA_DATA", "https://data.alpaca.markets")
+
+
 class Alpaca:
     def __init__(self):
         self.key = os.environ.get("ALPACA_KEY", "")
@@ -177,6 +182,13 @@ class Alpaca:
                 return json.loads(r.read().decode() or "null")
         except urllib.error.HTTPError as ex:
             raise RuntimeError("alpaca %s %s: %s %s" % (method, p, ex.code, ex.read().decode()[:300]))
+
+    def data(self, p):
+        """Read-only market data (prices). Never places anything."""
+        req = urllib.request.Request(DATA_BASE + p, headers={
+            "APCA-API-KEY-ID": self.key, "APCA-API-SECRET-KEY": self.secret, "User-Agent": "stockbot"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode() or "null")
 
 
 # ---------- running the trader tools ----------
@@ -550,6 +562,68 @@ def cooling(sleeve):
             and x.get("loss", True)}
 
 
+def ny_now():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.datetime.now(ZoneInfo("America/New_York")).replace(tzinfo=None)
+    except Exception:
+        return now()
+
+
+def trading_days(alpaca, state):
+    """Next few NYSE trading dates from Alpaca's calendar, refreshed daily."""
+    c = state.get("calendar") or {}
+    if c.get("asof") != today() and alpaca.ready:
+        try:
+            d0 = ny_now().date()
+            rows = alpaca.call("GET", "/v2/calendar?start=%s&end=%s" % (d0 - datetime.timedelta(days=1),
+                                                                         d0 + datetime.timedelta(days=7)))
+            c = {"asof": today(), "days": [r["date"] for r in rows]}
+            state["calendar"] = c
+        except Exception as ex:
+            log("calendar error:", ex)
+    return set(c.get("days") or [])
+
+
+def market_session(alpaca, state, is_open):
+    """regular / pre / post / overnight / closed, New York time."""
+    if is_open:
+        return "regular"
+    days = trading_days(alpaca, state)
+    n = ny_now()
+    d, hm = n.strftime("%Y-%m-%d"), n.hour * 60 + n.minute
+    tomorrow = (n + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    if d in days and 4 * 60 <= hm < 9 * 60 + 30:
+        return "pre"
+    if d in days and 16 * 60 <= hm < 20 * 60:
+        return "post"
+    if (hm >= 20 * 60 and tomorrow in days) or (hm < 4 * 60 and d in days):
+        return "overnight"
+    return "closed"
+
+
+def off_hours_prices(alpaca, symbols, session):
+    """Latest trade prices outside regular hours from Alpaca's data feed
+    (IEX for pre/after-hours, the overnight feed at night). {} if unavailable."""
+    if not symbols or not alpaca.ready:
+        return {}
+    feed = "overnight" if session == "overnight" else "iex"
+    try:
+        d = alpaca.data("/v2/stocks/trades/latest?symbols=%s&feed=%s" % (",".join(sorted(symbols)), feed))
+    except Exception as ex:
+        log("stops: no %s prices (%s)" % (feed, str(ex)[:120]))
+        return {}
+    out = {}
+    for s, t in (d.get("trades") or {}).items():
+        try:
+            ts = datetime.datetime.strptime(t["t"][:19], "%Y-%m-%dT%H:%M:%S")
+            if (datetime.datetime.utcnow() - ts).total_seconds() < 3 * 3600 and t.get("p"):   # fresh only
+                out[s] = float(t["p"])
+        except Exception:
+            pass
+    return out
+
+
 def sold_today(sleeve):
     return {r["symbol"] for r in ledger() if r.get("sleeve") == sleeve and r.get("side") == "sell"
             and str(r.get("time", "")).startswith(today()) and r.get("status") not in ("rejected", "canceled")}
@@ -611,9 +685,16 @@ def exits(cfg, alpaca, state, is_open):
         state["stops_updated"] = today()
     if changed:
         save("stops.json", st)
-    if not is_open:
+    session = market_session(alpaca, state, is_open)
+    state["session"] = session
+    if session == "closed" or (session != "regular" and not cfg.get("stops_after_hours")):
         return
-    px = quotes(syms, path("sleeves", "exits"))
+    if session == "regular":
+        px = quotes(syms, path("sleeves", "exits"))
+    else:
+        px = off_hours_prices(alpaca, syms, session)
+        if not px:
+            return
     done = state.setdefault("exited", {})
     if done.get("day") != today():
         done.clear()
@@ -626,7 +707,10 @@ def exits(cfg, alpaca, state, is_open):
                 continue
             why = None
             if p <= e["stop"]:
-                why = "stop-loss: %.2f is at/under the stop %.2f" % (p, e["stop"])
+                why = "stop-loss: %.2f is at/under the stop %.2f%s" % (
+                    p, e["stop"], "" if session == "regular" else " (%s session)" % session)
+            elif session != "regular":
+                continue                        # off-hours only protects; targets wait for the open
             elif e.get("target_r") and e.get("r") and p >= h["avg"] + e["target_r"] * e["r"]:
                 why = "target hit: %.2f reached %.0fx the risk over cost %.2f" % (p, e["target_r"], h["avg"])
             if not why:
@@ -634,9 +718,12 @@ def exits(cfg, alpaca, state, is_open):
             qty = math.floor(h["qty"] * 1e6) / 1e6
             if qty <= 0:
                 continue
-            orders.append({"symbol": sym, "side": "sell", "qty": ("%.6f" % qty).rstrip("0").rstrip("."), "type": "market",
-                           "time_in_force": "day", "why": why})
-            o = orders[-1]
+            o = {"symbol": sym, "side": "sell", "qty": ("%.6f" % qty).rstrip("0").rstrip("."), "type": "market",
+                 "time_in_force": "day", "why": why}
+            if session != "regular":            # off-hours: limit orders only
+                o.update(type="limit", extended_hours=True,
+                         limit_price=round(p * (1 - cfg["after_hours_limit_pct"] / 100.0), 2))
+            orders.append(o)
             o["_stop"], o["_avg"], o["_loss"] = e["stop"], round(h["avg"], 2), p < h["avg"]
             log(s, "EXIT", sym, why)
         if orders:
@@ -905,7 +992,8 @@ def decisions_step(cfg, alpaca):
 
 
 def place(sleeve, o, cfg, alpaca, prices):
-    body = {k: o[k] for k in ("symbol", "side", "qty", "notional", "type", "time_in_force") if k in o}
+    body = {k: o[k] for k in ("symbol", "side", "qty", "notional", "type", "time_in_force", "limit_price",
+                              "extended_hours") if k in o}
     body["client_order_id"] = "%s-%s-%s-%s" % (sleeve, today(), o["symbol"], o["side"])
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
            "notional": o.get("notional", ""), "want_qty": o.get("qty", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
@@ -1459,6 +1547,7 @@ def cycle(cfg, alpaca):
             log(name, "ERROR", ex)
             status["errors"].append("%s: %s" % (name, str(ex)[:200]))
     status["errors"] += load("slow_errors.json", [])
+    status["session"] = state.get("session")
     save("state.json", state)
     save("status.json", status)
     start_slow_jobs(cfg)

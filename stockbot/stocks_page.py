@@ -378,8 +378,10 @@ def page(cfg):
         mkt = '<span class="ok">open</span><div class="cd" data-to="%s" data-pre="closes in"></div>' % e(
             status.get("next_close") or "")
     elif open_now is not None:
-        mkt = '<span class="muted">closed</span><div class="cd" data-to="%s" data-pre="opens in"></div>' % e(
-            status.get("next_open") or "")
+        ses = {"pre": "pre-market", "post": "after-hours", "overnight": "overnight"}.get(status.get("session"))
+        mkt = ('<span class="muted">%s</span>%s<div class="cd" data-to="%s" data-pre="opens in"></div>'
+               % (ses or "closed", '<div class="cd" style="color:#3fb950">stops still watched</div>' if ses else "",
+                  e(status.get("next_open") or "")))
     else:
         mkt = "?"
     tpl = tot_val - tot_cost + tot_real
