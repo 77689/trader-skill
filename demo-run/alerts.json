@@ -1,0 +1,27 @@
+{
+  "rules": [
+    {
+      "id": "opening-bell",
+      "type": "opening_bell"
+    },
+    {
+      "id": "aapl-above-360",
+      "symbol": "AAPL",
+      "type": "above",
+      "price": 360.0
+    },
+    {
+      "id": "bac-stop-48",
+      "symbol": "BAC",
+      "type": "stop",
+      "price": 48.0,
+      "note": "my stop"
+    },
+    {
+      "id": "ko-move-3",
+      "symbol": "KO",
+      "type": "pct_move",
+      "pct": 3.0
+    }
+  ]
+}
