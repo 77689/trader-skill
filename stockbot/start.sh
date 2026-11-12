@@ -11,6 +11,12 @@ else
   nohup python "$HERE/stockbot.py" run >> "$HOME/stockbot-data/stockbot.log" 2>&1 &
   echo "stockbot: started"
 fi
+if pgrep -f "stockbot/sync.sh" > /dev/null; then
+  echo "sync: already running"
+else
+  nohup bash "$HERE/sync.sh" >> "$HOME/stockbot-data/sync.log" 2>&1 &
+  echo "sync: started"
+fi
 sleep 3
-echo "check: stockbot $(pgrep -fc 'stockbot.py run')"
+echo "check: stockbot $(pgrep -fc 'stockbot.py run') | sync $(pgrep -fc 'stockbot/sync.sh')"
 tail -n 5 "$HOME/stockbot-data/stockbot.log"

@@ -47,3 +47,11 @@ Screener rules are in `~/stockbot-data/sleeves/screener/trader/rules.json`.
 risk check. `paper_approve` parks each order on the Stocks tab until you tap
 Approve or Decline, and the broker tool records your yes. `watch` places nothing.
 News, tax, alerts and congress only watch and report.
+
+## Letting Claude read the data
+
+`sync.sh` copies the bot's data (orders, holdings, news, tax, alerts, Congress
+log, recent log lines, config with your email hidden) to the `stock-data`
+branch of your memebot-data repo every 5 minutes, using the login your memebot
+sync already has. `start.sh` starts it. Say "check the stock bot" and Claude
+reads that branch.
