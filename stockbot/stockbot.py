@@ -481,7 +481,8 @@ def congress(cfg, state):
     os.makedirs(d, exist_ok=True)
     since = (now() - datetime.timedelta(days=cfg["congress_days_back"])).strftime("%Y-%m-%d")
     _, out = run_tool("pelosi", ["new", "--json", "--read", "--since", since, "--state",
-                                 os.path.join(d, "state.json"), "--pdf-dir", os.path.join(d, "pdfs")], d)
+                                 os.path.join(d, "state.json"), "--pdf-dir", os.path.join(d, "pdfs")], d,
+                    ok_codes=(0, 1))  # exit 1 just means "nothing new"
     data = json.loads(out)
     log_rows = load("congress.json", [])
     new_rows = []
