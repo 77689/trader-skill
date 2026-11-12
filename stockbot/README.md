@@ -113,3 +113,14 @@ The Berkshire sleeve is also compared with QUAL (quality-factor ETF): research
 says most of Buffett's edge is that factor, so if the copy trails QUAL after a
 year, holding QUAL is the simpler choice. Stocks the 13F or the screen drop are
 sold (`--sell-untracked`). Monthly sleeves have no stop-losses.
+
+## News gate
+
+Every stock buy waits for a fresh news check on that stock (the news tool:
+Yahoo headlines and the company's SEC 8-Ks from the last 5 days, rechecked at
+most every 15 minutes). A buy is skipped if the company filed an 8-K for
+bankruptcy, a cybersecurity incident, debt acceleration, an impairment, a
+delisting notice, an auditor change or past financials no longer being
+reliable. A red-flag 8-K on something you already hold sends a notification.
+Headlines are shown but don't block trades: Yahoo's per-ticker feed mixes in
+other companies' stories. ETF sleeves skip the gate. `news_gate_days` (0 = off).

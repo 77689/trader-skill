@@ -546,6 +546,18 @@ def page(cfg):
                      title + (" " + tags if tags else "")])
     out.append("<h2>News on your stocks</h2>")
     out.append(table(["time (UTC)", "stock", "headline"], rows, "nothing yet"))
+    gate = stockbot.load("news_gate.json", {})
+    if gate:
+        g = sorted(gate.items(), key=lambda kv: -kv[1].get("checked", 0))[:12]
+        out.append("<h2>News check before buying</h2>")
+        out.append(table(["stock", "checked", "result"],
+                         [[sym_link(s), e(v.get("time", "")[5:16]),
+                           '<span class="bad">blocked: %s</span>' % e("; ".join(v["red"])) if v.get("red")
+                           else '<span class="ok">clear</span> <span class="muted">(%d headlines, no red-flag filings)</span>'
+                           % v.get("headlines", 0)] for s, v in g]))
+        out.append('<div class="note muted">every stock buy waits for this. Red flags = 8-K for bankruptcy, '
+                   'delisting, cyber incident, impairment, debt acceleration, auditor change or unreliable '
+                   'past financials in the last 5 days.</div>')
 
     # tax
     tx = stockbot.load("tax.json", {})

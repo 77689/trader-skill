@@ -84,7 +84,8 @@ DEFAULTS = {
     "quality_top": 10,
     "core_cooldown_days": 30,      # ... and don't buy it back for this many days
     "trade_cooldown_days": 5,      # swing/breakout: wait this long before re-entering a stock
-    "pause_after_stops": 2,        # this many losing stops in a day = no new buys until tomorrow
+    "pause_after_stops": 2,
+    "news_gate_days": 5,           # skip buying a stock with a red-flag SEC filing in the last N days (0 = off)        # this many losing stops in a day = no new buys until tomorrow
     "cash_buffer_pct": 10,
     "max_position_pct": 40,        # per sleeve, so 5 stocks can fill the sleeve
     "max_order_usd": 2000,
@@ -452,8 +453,58 @@ def plan_and_trade(sleeve, budget, cfg, alpaca, prices_for):
     return risk_and_place(sleeve, orders, d, cfg, alpaca, prices)
 
 
+# ---------- news gate: every buy waits for a fresh company-news check ----------
+
+RED_8K = {"1.03": "bankruptcy", "1.05": "cybersecurity incident", "2.04": "debt acceleration",
+          "2.06": "impairment", "3.01": "delisting notice", "4.01": "auditor change",
+          "4.02": "past financials no longer reliable"}
+
+
+def news_check(symbols, cfg):
+    """Fresh news for these stocks (SEC 8-Ks and headlines, last 5 days) right before
+    buying. Returns {symbol: [red flags]}. Checks each stock at most every 15 minutes."""
+    gate = load("news_gate.json", {})
+    stale = [s for s in symbols if time.time() - gate.get(s, {}).get("checked", 0) > 900]
+    if stale:
+        d = path("news")
+        os.makedirs(os.path.join(d, "trader"), exist_ok=True)
+        with open(os.path.join(d, "trader", "config.json"), "w") as f:
+            json.dump({"sec_user_agent": cfg["sec_user_agent"]}, f)
+        try:
+            _, out = run_tool("news", ["--tickers"] + stale + ["--hours", cfg["news_gate_days"] * 24, "--all",
+                                                                "--json", "--dry-run"], d, ok_codes=(0, 1))
+            items = json.loads(out).get("items", [])
+        except Exception as ex:
+            log("news gate: check failed (%s), buying without it this time" % ex)
+            items = None
+        if items is not None:
+            for s in stale:
+                red = []
+                for i in items:
+                    if s not in (i.get("touches") or [i.get("ticker")]) or i.get("kind") != "filing":
+                        continue
+                    for code in i.get("items") or []:
+                        if code in RED_8K:
+                            red.append("%s 8-K %s: %s" % (i.get("time", "")[:10], code, RED_8K[code]))
+                heads = [i.get("title", "") for i in items if i.get("ticker") == s and i.get("kind") == "headline"]
+                gate[s] = {"checked": time.time(), "red": red, "headlines": len(heads),
+                           "time": stamp()}
+            save("news_gate.json", gate)
+    return {s: gate.get(s, {}).get("red", []) for s in symbols}
+
+
 def risk_and_place(sleeve, orders, d, cfg, alpaca, prices, exit_orders=False):
     """Write orders.json, run the risk tool, place (or park for approval) what PASSES."""
+    buys = [o["symbol"] for o in orders if o["side"] == "buy"]
+    if buys and sleeve not in MONTHLY and cfg.get("news_gate_days"):   # ETFs have no company news
+        flags = news_check(buys, cfg)
+        blocked = {s for s, r in flags.items() if r}
+        for s in sorted(blocked):
+            log(sleeve, "NEWS BLOCK", s, "; ".join(flags[s]))
+            notify("stockbot news block %s" % s, "; ".join(flags[s]))
+        orders = [o for o in orders if not (o["side"] == "buy" and o["symbol"] in blocked)]
+        if not orders:
+            return 0
     with open(os.path.join(d, "trader", "orders.json"), "w") as f:
         json.dump({"created_by": "stockbot", "created_at": stamp(), "status": "proposed", "paper": True,
                    "orders": orders}, f, indent=1)
@@ -1051,7 +1102,18 @@ def news(cfg, state):
         json.dump({"sec_user_agent": cfg["sec_user_agent"]}, f)
     _, out = run_tool("news", ["--tickers"] + syms + ["--hours", 48, "--all", "--json", "--dry-run"], d)
     items = json.loads(out).get("items", [])
-    save("news.json", {"time": stamp(), "items": items[:40]})
+    keep = [i for i in items if i.get("kind") == "filing"] + [i for i in items if i.get("kind") != "filing"][:40]
+    save("news.json", {"time": stamp(), "items": sorted(keep, key=lambda i: i.get("time", ""), reverse=True)})
+    seen = set(state.get("red_seen", []))
+    held = {x for s in SLEEVES for x in holdings(s)[0]}
+    for i in items:
+        codes = [c for c in i.get("items") or [] if c in RED_8K]
+        if i.get("kind") == "filing" and codes and i["id"] not in seen and i.get("ticker") in held:
+            msg = "%s filed an 8-K: %s. You hold it; take a look." % (i["ticker"], ", ".join(RED_8K[c] for c in codes))
+            log("NEWS RED FLAG", msg)
+            notify("stockbot red flag %s" % i["ticker"], msg)
+            seen.add(i["id"])
+    state["red_seen"] = sorted(seen)[-300:]
     state["news_check"] = time.time()
     flagged = [i for i in items if i.get("tags")]
     log("news: %d items on %d stocks, %d flagged" % (len(items), len(syms), len(flagged)))
