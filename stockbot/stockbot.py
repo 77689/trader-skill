@@ -488,7 +488,7 @@ def congress(cfg, state):
     new_rows = []
     for rep in data.get("reports", []):
         f = rep["filing"]
-        rows = rep.get("report", {}).get("rows", [])
+        rows = (rep.get("report") or {}).get("rows", [])
         if not rows:
             new_rows.append({"filed": f["filed"], "member": f["name"], "doc_id": f["doc_id"], "ticker": "",
                              "action": "", "amount": "", "traded": "", "url": f["url"],
