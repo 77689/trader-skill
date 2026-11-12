@@ -2,10 +2,10 @@
 # Copies the stock bot's data to the "stock-data" branch of your memebot-data
 # repo so Claude can read it when you say "check the stock bot".
 # Uses the same GitHub login your memebot sync already uses (read from
-# ~/memebot's git remote). A separate branch, so it never touches the memebot
+# ~/memebot-data git remote). A separate branch, so it never touches the memebot
 # sync. Loops every 5 minutes. "sync.sh once" runs a single pass.
 DATA="${STOCKBOT_DATA:-$HOME/stockbot-data}"
-SRC_REPO="${MEMEBOT_DIR:-$HOME/memebot}"
+SRC_REPO="${MEMEBOT_DIR:-$HOME/memebot-data}"
 WORK="${STOCKBOT_SYNC_DIR:-$HOME/stockbot-sync}"
 BRANCH="stock-data"
 
