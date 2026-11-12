@@ -49,30 +49,32 @@ def fetch(sym, adjusted=False):
 def bars(symbols, cache_dir, today, adjusted=False):
     """{symbol: [[date, o, h, l, c, v], ...]} refreshed once per day."""
     os.makedirs(cache_dir, exist_ok=True)
-    out = {}
-    for s in symbols:
+
+    def one(s):
         f = os.path.join(cache_dir, s + ".json")
         try:
             with open(f) as fh:
                 c = json.load(fh)
             if c.get("fetched") == today:
-                out[s] = c["rows"]
-                continue
+                return s, c["rows"]
         except Exception:
             pass
         try:
             rows = fetch(s, adjusted)
             with open(f, "w") as fh:
                 json.dump({"fetched": today, "rows": rows}, fh)
-            out[s] = rows
-            time.sleep(0.3)
+            return s, rows
         except Exception:
             try:
                 with open(f) as fh:
-                    out[s] = json.load(fh)["rows"]      # stale is better than nothing
+                    return s, json.load(fh)["rows"]      # stale is better than nothing
             except Exception:
-                pass
-    return out
+                return s, None
+
+    # 6 downloads at a time: ~120 stocks take seconds instead of a minute or two
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        return {s: rows for s, rows in pool.map(one, list(symbols)) if rows}
 
 
 def completed(rows, today):
