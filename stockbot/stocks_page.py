@@ -97,6 +97,32 @@ def price_map(account):
     return px
 
 
+def lead(bot, spy):
+    if abs(bot - spy) < 0.005:
+        return '<span class="muted">even</span>'
+    return '<span class="%s">%s</span>' % (("ok", "ahead") if bot > spy else ("bad", "behind"))
+
+
+def vs_spy(sleeve, px, spy_now):
+    """(dollars put in, bot's gain, gain if the same dollars had gone into SPY on the same days)."""
+    bought = sold = spy_sh = 0.0
+    for o in stockbot.ledger():
+        if o.get("sleeve") != sleeve or o.get("status") not in ("filled", "partially_filled"):
+            continue
+        spy = num(o.get("spy"))
+        if not spy:
+            continue
+        amt = num(o.get("qty")) * num(o.get("price"))
+        if o.get("side") == "buy":
+            bought, spy_sh = bought + amt, spy_sh + amt / spy
+        else:
+            sold, spy_sh = sold + amt, spy_sh - amt / spy
+    hold, _ = stockbot.holdings(sleeve)
+    val = sum(h["qty"] * px.get(sym, h["avg"]) for sym, h in hold.items())
+    net = bought - sold
+    return net, val - net, spy_sh * spy_now - net
+
+
 def page(cfg):
     account = stockbot.load("account.json", {})
     status = stockbot.load("status.json", {})
@@ -143,6 +169,23 @@ def page(cfg):
     out.append('<div class="card"><div class="label">Orders today</div><div class="val">%d</div></div>'
                % placed_today)
     out.append("</div>")
+
+    # the bot against just buying the S&P 500 with the same dollars on the same days
+    spy_now = num(stockbot.load("spy.json", {}).get("price"))
+    srows, tn, tb, ts = [], 0.0, 0.0, 0.0
+    for name in ("berkshire", "screener"):
+        net, bot, spy = vs_spy(name, px, spy_now)
+        if net <= 0:
+            continue
+        tn, tb, ts = tn + net, tb + bot, ts + spy
+        srows.append([name, "$%.0f" % net, money(bot), pct(bot / net * 100), money(spy), pct(spy / net * 100),
+                      lead(bot, spy)])
+    out.append("<h2>Vs just buying the S&amp;P 500 (SPY)</h2>")
+    if srows:
+        srows.append(["<b>total</b>", "$%.0f" % tn, money(tb), pct(tb / tn * 100), money(ts), pct(ts / tn * 100),
+                      lead(tb, ts)])
+    out.append(table(["sleeve", "put in", "bot", "%", "SPY", "%", ""], srows, "waiting for the first trades"))
+    out.append('<div class="note muted">same dollars, same days. too early to mean anything until it has weeks of data.</div>')
 
     out.append("<h2>By sleeve</h2>")
     out.append(table(["sleeve", "budget", "in", "now", "open P&L", "realized", "stocks"], rows))

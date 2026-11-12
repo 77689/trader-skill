@@ -392,7 +392,8 @@ def place(sleeve, o, cfg, alpaca, prices):
     body["client_order_id"] = "%s-%s-%s-%s" % (sleeve, today(), o["symbol"], o["side"])
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
            "notional": o.get("notional", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
-           "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160]}
+           "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160],
+           "spy": float(load("spy.json", {}).get("price") or 0)}
     if cfg["mode"] not in ("paper_auto", "paper_approve") or not alpaca.ready:
         log(sleeve, "WOULD place", body["side"], body["symbol"], body.get("notional") or body.get("qty"),
             "(watch mode)" if cfg["mode"] not in ("paper_auto", "paper_approve") else "(no Alpaca keys yet)")
@@ -428,11 +429,28 @@ def due(state, key, days):
 
 def berkshire(cfg, alpaca, state, is_open):
     d = write_sleeve_config("berkshire", cfg, cfg["berkshire_budget"])
-    if due(state, "berkshire_refresh", cfg["refresh_days"]) or not os.path.exists(
-            os.path.join(d, "trader", "targets.json")):
+    tfile = os.path.join(d, "trader", "targets.json")
+
+    def filed():
+        try:
+            with open(tfile) as f:
+                return json.load(f).get("filed")
+        except Exception:
+            return None
+
+    # 13Fs are due 45 days after each quarter ends (mid Feb, May, Aug, Nov):
+    # check every hour in those weeks, weekly otherwise
+    gap = 3600 if now().month in (2, 5, 8, 11) and 10 <= now().day <= 20 else cfg["refresh_days"] * 86400
+    if time.time() - state.get("berkshire_checked", 0) > gap or not os.path.exists(tfile):
+        before = filed()
         run_tool("copycat", ["copy", "1067983", "--top", 5, "--combine"], d)
-        state["berkshire_refresh"] = today()
-        log("berkshire: refreshed targets from the latest 13F")
+        state["berkshire_checked"] = time.time()
+        after = filed()
+        if before and after != before:
+            log("berkshire: NEW 13F filed %s, replanning today" % after)
+            state.pop("berkshire_plan", None)
+        elif not before:
+            log("berkshire: loaded targets from the 13F filed %s" % after)
     if not is_open or state.get("berkshire_plan") == today():
         return
     with open(os.path.join(d, "trader", "targets.json")) as f:
@@ -664,6 +682,12 @@ def cycle(cfg, alpaca):
         reconcile(alpaca)
     is_open = market_open(alpaca)
     status["market_open"] = is_open
+    try:
+        spy = quotes(["SPY"], path("sleeves", "spy")).get("SPY")
+        if spy:
+            save("spy.json", {"price": spy, "time": stamp()})
+    except Exception as ex:
+        log("spy quote error:", ex)
     for name, fn in (("berkshire", berkshire), ("screener", screener)):
         try:
             fn(cfg, alpaca, state, is_open)
