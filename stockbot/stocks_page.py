@@ -55,6 +55,9 @@ a.coin { display:inline-flex; align-items:center; }
 .rb i { position:absolute; top:-3px; width:2px; height:14px; border-radius:1px; transform:translateX(-1px); }
 .rb i.c { background:#8b949e; } .rb i.n { background:#e6e6e6; width:4px; transform:translateX(-2px); }
 .rbl { display:flex; gap:10px; font-size:11px; }
+.share { font-size:12px; color:#8b949e; margin:-4px 0 12px; }
+.share input { width:100%; box-sizing:border-box; margin-top:4px; padding:7px 9px; border-radius:8px;
+               border:1px solid #30363d; background:#0e1116; color:#58a6ff; font-size:13px; }
 """
 
 
@@ -87,11 +90,36 @@ def table(headers, rows, empty="nothing yet"):
     return '<div class="wrap"><table><tr>%s</tr>%s</table></div>' % (h, body)
 
 
+SHARED = False                     # True while serving a request that came through the share link
+PUBLIC = ("/stocks", "/s", "/filings")
+
+
+def guard(pathname, headers):
+    """Called by dashboard.py for every request. Visitors through the share link
+    (Cloudflare / ngrok) only get the Stocks and Filings pages, read-only. Your
+    own phone at localhost still sees everything."""
+    global SHARED
+    host = (headers.get("Host") or "").split(":")[0].lower()
+    SHARED = bool(headers.get("Cf-Connecting-Ip") or headers.get("X-Forwarded-For")
+                  or headers.get("X-Real-Ip") or host not in ("localhost", "127.0.0.1", ""))
+    if SHARED and pathname not in PUBLIC:
+        return "/stocks"
+    return pathname
+
+
+def share_url():
+    try:
+        with open(stockbot.path("share_url.txt")) as f:
+            return f.read().strip()
+    except Exception:
+        return ""
+
+
 def tabs(active):
     def a(href, label, key):
         return '<a href="%s"%s>%s</a>' % (href, ' class="on"' if key == active else "", label)
-    return '<div class="tabs">%s%s%s</div>' % (a("/", "Memecoins", "memebot"), a("/stocks", "Stocks", "stocks"),
-                                              a("/filings", "Filings +", "filings"))
+    return '<div class="tabs">%s%s%s</div>' % ("" if SHARED else a("/", "Memecoins", "memebot"),
+                                              a("/stocks", "Stocks", "stocks"), a("/filings", "Filings +", "filings"))
 
 
 def handles(pathname):
@@ -303,6 +331,10 @@ def page(cfg):
     out = [tabs("stocks"), "<h1>stocks</h1>"]
     out.append('<div class="sub">paper trading on Alpaca &middot; updated %s &middot; refreshes every 30s</div>'
                % time.strftime("%b %d %I:%M:%S %p"))
+    link = share_url()
+    if link and not SHARED:
+        out.append('<div class="share">share link (Stocks + Filings only, read-only): '
+                   '<input readonly value="%s" onclick="this.select()"></div>' % e(link))
 
     # sleeves
     tot_val = tot_cost = tot_real = 0.0
@@ -447,7 +479,7 @@ def page(cfg):
     # orders waiting for your yes (approve mode)
     pend = [p for p in stockbot.load("pending.json", []) if p.get("status") == "pending"
             and p.get("date") == day]
-    if pend or cfg["mode"] == "paper_approve":
+    if (pend or cfg["mode"] == "paper_approve") and not SHARED:
         rows = []
         for p in pend:
             link = "/approve?id=%s&t=%s&d=" % (e(p["id"]), e(p["token"]))
@@ -580,6 +612,8 @@ def approve_page(query):
 def render(pathname, query, css):
     cfg = stockbot.config()
     if pathname == "/approve":
+        if SHARED:
+            return "<!doctype html><p>not available on the shared link</p>"
         return ("<!doctype html><html><head><meta charset='utf-8'>"
                 "<meta name='viewport' content='width=device-width, initial-scale=1'>"
                 "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" +

@@ -92,3 +92,11 @@ cost and not bought back for 30 days. Berkshire has no stop by default
 (`berkshire_stop_pct` 0): copying Buffett means holding through drops. Two losing stops in a day
 pause new buys until tomorrow (`pause_after_stops`). Stop and target sales go
 through even when they are over the buy-size cap.
+
+## Sharing the dashboard with friends
+
+`share.sh` opens a free Cloudflare quick tunnel to the dashboard and puts the
+link on your Stocks tab and in a notification. People using the link only get
+the Stocks and Filings tabs, read-only (no Memecoins tab, no approve buttons);
+your phone at localhost still sees everything. The link changes whenever the
+tunnel restarts. `share.sh stop` turns it off.
