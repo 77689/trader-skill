@@ -17,8 +17,14 @@ STOCKBOT_DIR = os.path.dirname(os.path.abspath(__file__))
 target = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else "~/memebot/dashboard.py")
 
 src = open(target).read()
+OLD_ROUTE = '            if u.path in ("/stocks", "/s", "/approve") and stocks_page:\n'
 if "stocks_page" in src:
-    print("already patched: nothing to do")
+    if OLD_ROUTE in src:   # upgrade: lets the Filings tab route through
+        shutil.copy(target, target + ".bak-stocks2")
+        open(target, "w").write(src.replace(OLD_ROUTE, '            if stocks_page and stocks_page.handles(u.path):\n'))
+        print("upgraded the route for the Filings tab. Restart the dashboard.")
+    else:
+        print("already patched: nothing to do")
     sys.exit(0)
 
 IMPORT_ANCHOR = 'CHAINS = {"solana", "base", "robinhood"}\n'
@@ -42,7 +48,7 @@ nav_block = NAV_ANCHOR.replace(
     '    out.append("<h1>memebot</h1>")\n',
     '    if stocks_page:\n        out.append(stocks_page.tabs("memebot"))\n    out.append("<h1>memebot</h1>")\n')
 route_block = (
-    '            if u.path in ("/stocks", "/s", "/approve") and stocks_page:\n'
+    '            if stocks_page and stocks_page.handles(u.path):\n'
     '                body = stocks_page.render(u.path, parse_qs(u.query), CSS).encode()\n'
     '            elif u.path == "/c":\n')
 

@@ -63,3 +63,11 @@ the same days (an order's SPY price is recorded when it is placed). In the weeks
 13Fs are due (the 10th to the 20th of Feb, May, Aug, Nov) the bot checks for
 Berkshire's new filing every hour and replans the moment it posts; otherwise
 once a week.
+
+## Filings tab (the "+")
+
+`filings()` checks Berkshire's SEC feed every 30 minutes (Form 4 trades, 13D/13G
+stake reports, new 13F) and shows them on the Filings tab. New items trigger a
+phone notification. Form 4 lands about 2 business days after a trade, weeks
+ahead of the 13F. Add more people with `watch_filers` in config.json
+(`{"Name": "CIK"}`). Trades in Berkshire's own stock by its insiders are skipped.

@@ -56,6 +56,8 @@ DEFAULTS = {
     "mode": "paper_auto",          # paper_auto: places paper orders itself
                                    # paper_approve: waits for your tap on the Stocks tab
                                    # watch: places nothing
+    "watch_filers": {"Berkshire Hathaway": "1067983"},   # who the Filings tab watches (name: SEC CIK)
+    "filings_days": 120,           # how far back the Filings tab looks
     "alert_stop_pct": 15,          # price alert when a stock falls this far under your cost
     "alert_up_pct": 20,            # ... or rises this far over it
     "alert_move_pct": 5,           # ... or moves this much in a day
@@ -655,6 +657,120 @@ def alerts(cfg):
     save("alerts_log.json", hist)
 
 
+# ---------- fast filings: Form 4 and 13D/13G beat the 13F by weeks ----------
+
+def sec_get(url, cfg):
+    req = urllib.request.Request(url, headers={"User-Agent": cfg["sec_user_agent"]})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def xml_vals(x, tag):
+    import re
+    return [v.strip() for v in re.findall(r"<%s[^>]*>\s*(?:<value>)?([^<]*)" % tag, x)]
+
+
+def read_form4(x):
+    codes, shares, prices = xml_vals(x, "transactionCode"), xml_vals(x, "transactionShares"), \
+        xml_vals(x, "transactionPricePerShare")
+    held = xml_vals(x, "sharesOwnedFollowingTransaction")
+    tot = {}
+    for i, c in enumerate(codes):
+        try:
+            sh = float(shares[i])
+        except Exception:
+            continue
+        try:
+            px = float(prices[i])
+        except Exception:
+            px = 0.0
+        t = tot.setdefault(c, [0.0, 0.0])
+        t[0] += sh
+        t[1] += sh * px
+    parts, action = [], "other"
+    for c, (sh, val) in tot.items():
+        avg = val / sh if sh and val else 0
+        word = {"P": "BOUGHT", "S": "SOLD"}.get(c)
+        if word:
+            action = word if action in ("other", word) else "mixed"
+            parts.append("%s %s sh%s" % (word, format(int(sh), ","), " at avg $%.2f" % avg if avg else ""))
+        else:
+            parts.append("%s: %s sh" % ({"G": "gift", "A": "award", "M": "option exercise", "F": "tax withholding",
+                                         "J": "other"}.get(c, "code " + c), format(int(sh), ",")))
+    if held:
+        try:
+            parts.append("now holds %s" % format(int(float(held[-1])), ","))
+        except Exception:
+            pass
+    return action, "; ".join(parts) or "no transactions listed"
+
+
+def filings(cfg, state):
+    """Berkshire's own SEC filings: Form 4 (within about 2 business days when it owns over 10%),
+    13D/13G stake reports, and the new 13F the moment it posts."""
+    if state.get("filings_check") and time.time() - state["filings_check"] < 1800:
+        return
+    saved = load("filings.json", {"items": [], "seen": []})
+    seen, items = set(saved["seen"]), saved["items"]
+    first = not seen
+    cutoff = (now() - datetime.timedelta(days=cfg["filings_days"])).strftime("%Y-%m-%d")
+    fetched = 0
+    for who, cik in cfg["watch_filers"].items():
+        feed = json.loads(sec_get("https://data.sec.gov/submissions/CIK%010d.json" % int(cik), cfg))
+        r = feed["filings"]["recent"]
+        for i in range(len(r["form"])):
+            form, acc, day, doc = r["form"][i], r["accessionNumber"][i], r["filingDate"][i], r["primaryDocument"][i]
+            if day < cutoff:
+                break
+            if acc in seen:
+                continue
+            upper = form.upper()
+            kind = ("form4" if upper in ("4", "4/A") else "stake" if upper.startswith(("SC 13D", "SC 13G", "SCHEDULE 13D",
+                                                                                      "SCHEDULE 13G"))
+                    else "13f" if upper.startswith("13F-HR") else None)
+            if not kind:
+                continue
+            if fetched >= 15:
+                break  # the rest next pass; stays polite to the SEC
+            nodash = acc.replace("-", "")
+            link = "https://www.sec.gov/Archives/edgar/data/%d/%s/%s" % (int(cik), nodash, doc)
+            item = {"filed": day, "who": who, "form": form, "kind": kind, "issuer": "", "ticker": "", "action": "",
+                    "summary": "", "link": link, "acc": acc, "fresh": not first}
+            if kind == "13f":
+                item["summary"] = "new quarterly holdings report. Your bot re-copies it within the hour."
+            else:
+                raw = "https://www.sec.gov/Archives/edgar/data/%d/%s/%s" % (int(cik), nodash, doc.split("/")[-1])
+                try:
+                    x = sec_get(raw, cfg)
+                    fetched += 1
+                    time.sleep(0.2)
+                except Exception as ex:
+                    log("filings: could not read", acc, ex)
+                    continue
+                ic = (xml_vals(x, "issuerCik") or [""])[0]
+                item["issuer"] = (xml_vals(x, "issuerName") or [""])[0].title()
+                item["ticker"] = (xml_vals(x, "issuerTradingSymbol") or [""])[0]
+                if ic and ic.isdigit() and int(ic) == int(cik):
+                    seen.add(acc)      # insiders trading Berkshire's own stock: not what we are after
+                    continue
+                if kind == "form4":
+                    item["action"], item["summary"] = read_form4(x)
+                else:
+                    pc = xml_vals(x, "percentOfClass")
+                    item["summary"] = "stake report%s%s" % (
+                        " (amendment %s)" % xml_vals(x, "amendmentNo")[0] if xml_vals(x, "amendmentNo") else "",
+                        ", %s%% of the company" % pc[0] if pc else "")
+            seen.add(acc)
+            items.append(item)
+            if item["fresh"]:
+                msg = "%s %s %s: %s" % (who, form, item["ticker"] or item["issuer"], item["summary"])
+                log("FILING", msg)
+                notify("stockbot filing", msg)
+    items = sorted(items, key=lambda x: x["filed"], reverse=True)[:80]
+    save("filings.json", {"time": stamp(), "items": items, "seen": sorted(seen)[-400:]})
+    state["filings_check"] = time.time()
+
+
 # ---------- the loop ----------
 
 def snapshot(alpaca):
@@ -702,7 +818,8 @@ def cycle(cfg, alpaca):
             status["errors"].append("approvals: %s" % str(ex)[:200])
     snapshot(alpaca)
     for name, fn in (("congress", lambda: congress(cfg, state)), ("news", lambda: news(cfg, state)),
-                     ("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg))):
+                     ("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg)),
+                     ("filings", lambda: filings(cfg, state))):
         try:
             fn()
         except Exception as ex:

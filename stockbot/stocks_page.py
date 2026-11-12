@@ -56,7 +56,34 @@ def table(headers, rows, empty="nothing yet"):
 def tabs(active):
     def a(href, label, key):
         return '<a href="%s"%s>%s</a>' % (href, ' class="on"' if key == active else "", label)
-    return '<div class="tabs">%s%s</div>' % (a("/", "Memecoins", "memebot"), a("/stocks", "Stocks", "stocks"))
+    return '<div class="tabs">%s%s%s</div>' % (a("/", "Memecoins", "memebot"), a("/stocks", "Stocks", "stocks"),
+                                              a("/filings", "Filings +", "filings"))
+
+
+def handles(pathname):
+    return pathname in ("/stocks", "/s", "/approve", "/filings")
+
+
+def filings_page(cfg):
+    out = [tabs("filings"), "<h1>filings</h1>"]
+    d = stockbot.load("filings.json", {})
+    items = d.get("items", [])
+    who = ", ".join(cfg.get("watch_filers", {}).keys())
+    out.append('<div class="note muted">Watching: %s. Form 4 shows up within about 2 business days of a trade, '
+               'the 13F up to 45 days after quarter end. Checked %s.</div>' % (e(who), e(d.get("time", "not yet"))))
+    rows = []
+    for it in items:
+        act = it.get("action", "")
+        cls = "pos" if act == "BOUGHT" else "neg" if act == "SOLD" else "muted"
+        stock = sym_link(it["ticker"]) if it.get("ticker") else e(it.get("issuer", ""))[:24]
+        new = ' <span class="bad">new</span>' if it.get("fresh") and it.get("filed", "") >= time.strftime(
+            "%Y-%m-%d", time.localtime(time.time() - 3 * 86400)) else ""
+        rows.append([e(it["filed"]), e(it["who"])[:18], '<span class="%s">%s</span>' % (cls, e(it["form"])),
+                     stock, e(it.get("summary", ""))[:110] + new,
+                     '<a class="coin" href="%s">open</a>' % e(it["link"])])
+    out.append(table(["filed", "who", "form", "stock", "what", "filing"], rows,
+                     "nothing yet. The bot checks every 30 minutes."))
+    return out
 
 
 def running(name):
@@ -362,7 +389,10 @@ def render(pathname, query, css):
                 "<meta name='viewport' content='width=device-width, initial-scale=1'>"
                 "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" +
                 "".join(approve_page(query)) + "</body></html>")
-    if pathname == "/s":
+    if pathname == "/filings":
+        body = filings_page(cfg)
+        refresh = "<meta http-equiv='refresh' content='60'>"
+    elif pathname == "/s":
         body = stock_page((query.get("sym") or [""])[0])
         refresh = ""
     else:
