@@ -236,7 +236,7 @@ def page(cfg):
                 continue
             p = px.get(sym, h["avg"])
             tgt = h["avg"] + x["target_r"] * x["r"] if x.get("target_r") and x.get("r") else None
-            kind = {"fixed": "fixed %d%% under cost" % cfg["core_stop_pct"], "be1r": "to cost at +1R",
+            kind = {"fixed": "fixed %d%% under cost" % cfg.get(name + "_stop_pct", 15), "be1r": "to cost at +1R",
                     "trail10": "trails 10-day low"}.get(x.get("rule"), x.get("rule", ""))
             rows.append([name, sym_link(sym), "%.2f" % h["avg"], "%.2f" % p, '<span class="bad">%.2f</span>' % x["stop"],
                          pct((x["stop"] / p - 1) * 100 if p else 0),

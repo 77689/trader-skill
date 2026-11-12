@@ -71,7 +71,8 @@ DEFAULTS = {
     "trade_risk_pct": 1.0,         # swing/breakout: lose at most this % of the sleeve per trade
     "trade_max_position_pct": 25,  # ... and never more than this % of the sleeve in one stock
     "trade_max_positions": 6,
-    "core_stop_pct": 15,           # berkshire/screener: sell if a stock falls this far under cost (0 = off)
+    "berkshire_stop_pct": 0,       # off: copying Buffett means holding through drops
+    "screener_stop_pct": 15,       # sell a screener stock 15% under cost (0 = off)
     "core_cooldown_days": 30,      # ... and don't buy it back for this many days
     "trade_cooldown_days": 5,      # swing/breakout: wait this long before re-entering a stock
     "pause_after_stops": 2,        # this many losing stops in a day = no new buys until tomorrow
@@ -401,13 +402,16 @@ def exits(cfg, alpaca, state, is_open):
         return
     for s in SLEEVES:                                   # make sure every holding has a stop
         book = st.setdefault(s, {})
+        if s in CORE and not cfg.get(s + "_stop_pct"):
+            if book:
+                book.clear()
+                changed = True
+            continue
         for sym, h in held_all[s].items():
             e = book.get(sym)
             if not e:
                 if s in CORE:
-                    if not cfg["core_stop_pct"]:
-                        continue
-                    e = {"stop": round(h["avg"] * (1 - cfg["core_stop_pct"] / 100.0), 2), "r": None,
+                    e = {"stop": round(h["avg"] * (1 - cfg[s + "_stop_pct"] / 100.0), 2), "r": None,
                          "target_r": None, "rule": "fixed", "since": today()}
                 else:
                     e = {"stop": round(h["avg"] * 0.92, 2), "r": round(h["avg"] * 0.08, 2), "target_r": None,

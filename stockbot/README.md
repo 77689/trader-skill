@@ -86,7 +86,8 @@ Each trade risks about 1% of the sleeve (`trade_risk_pct`), max 25% of the
 sleeve in one stock, max 6 positions. Orders still go through the risk tool.
 
 Every position in every sleeve has a stop (`stops.json`, shown on the Stocks
-tab). Berkshire and screener positions are sold if they fall `core_stop_pct`
-(15%) under cost and not bought back for 30 days. Two losing stops in a day
+tab). Screener positions are sold if they fall `screener_stop_pct` (15%) under
+cost and not bought back for 30 days. Berkshire has no stop by default
+(`berkshire_stop_pct` 0): copying Buffett means holding through drops. Two losing stops in a day
 pause new buys until tomorrow (`pause_after_stops`). Stop and target sales go
 through even when they are over the buy-size cap.
