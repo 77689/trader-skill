@@ -42,7 +42,7 @@ nav_block = NAV_ANCHOR.replace(
     '    out.append("<h1>memebot</h1>")\n',
     '    if stocks_page:\n        out.append(stocks_page.tabs("memebot"))\n    out.append("<h1>memebot</h1>")\n')
 route_block = (
-    '            if u.path in ("/stocks", "/s") and stocks_page:\n'
+    '            if u.path in ("/stocks", "/s", "/approve") and stocks_page:\n'
     '                body = stocks_page.render(u.path, parse_qs(u.query), CSS).encode()\n'
     '            elif u.path == "/c":\n')
 

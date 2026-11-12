@@ -26,3 +26,24 @@ Files: `stockbot.py` (the bot), `stocks_page.py` (the tab), `install_tab.py`
 Settings are in `~/stockbot-data/config.json`: budgets, `mode` (`paper_auto` or
 `watch`), `rebalance_band_pct`, `screener_top`, `universe`, `sec_user_agent`.
 Screener rules are in `~/stockbot-data/sleeves/screener/trader/rules.json`.
+
+## All eleven trader tools
+
+| tool | how stockbot uses it |
+| --- | --- |
+| copycat | berkshire sleeve: top 5 from the latest 13F |
+| analyst | screener sleeve: reported numbers from SEC filings |
+| screener | screener sleeve: your rules decide what passes |
+| budget | sizes the first buys for each sleeve |
+| rebalance | pulls a sleeve back to its targets when it drifts |
+| risk | checks every order; blocked orders are never placed |
+| broker | `paper_approve` mode: tickets, your yes or no, the audit log |
+| alerts | prices and market clock, plus stop / target / daily-move alerts on what you hold |
+| news | headlines and SEC filings on every stock you hold or target |
+| tax | lots, gains by term, harvest ideas, wash-sale warnings |
+| pelosi | congress sleeve: logs new disclosures (never trades) |
+
+`mode` in config.json: `paper_auto` (default) places paper orders after the
+risk check. `paper_approve` parks each order on the Stocks tab until you tap
+Approve or Decline, and the broker tool records your yes. `watch` places nothing.
+News, tax, alerts and congress only watch and report.

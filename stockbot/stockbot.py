@@ -21,6 +21,8 @@ runs in watch mode: it plans everything but places nothing.
 import datetime
 import json
 import os
+import secrets
+import shutil
 import subprocess
 import sys
 import time
@@ -41,6 +43,9 @@ TOOL = {
     "analyst": os.path.join(REPO, "trader-analyst", "facts.py"),
     "screener": os.path.join(REPO, "trader-screener", "screen.py"),
     "pelosi": os.path.join(REPO, "trader-pelosi", "ptr.py"),
+    "broker": os.path.join(REPO, "trader-broker", "ticket.py"),
+    "news": os.path.join(REPO, "trader-news", "news.py"),
+    "tax": os.path.join(REPO, "trader-tax", "lots.py"),
 }
 
 UNIVERSE = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AVGO", "ORCL", "CRM", "ADBE",
@@ -48,7 +53,12 @@ UNIVERSE = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AVGO", "ORCL", "CR
             "XOM", "CVX", "PG", "KO", "PEP", "ABBV", "MRK", "TMO", "CSCO", "INTU"]
 
 DEFAULTS = {
-    "mode": "paper_auto",          # paper_auto places paper orders; watch places nothing
+    "mode": "paper_auto",          # paper_auto: places paper orders itself
+                                   # paper_approve: waits for your tap on the Stocks tab
+                                   # watch: places nothing
+    "alert_stop_pct": 15,          # price alert when a stock falls this far under your cost
+    "alert_up_pct": 20,            # ... or rises this far over it
+    "alert_move_pct": 5,           # ... or moves this much in a day
     "berkshire_budget": 2500,
     "screener_budget": 2500,
     "cash_buffer_pct": 10,
@@ -223,14 +233,23 @@ def holdings(sleeve):
     return out, realized
 
 
+def first_buy(sleeve, symbol):
+    """Date of the first filled buy of a symbol in a sleeve (for long/short term)."""
+    for r in ledger():
+        if (r.get("sleeve") == sleeve and r.get("symbol") == symbol and r.get("side") == "buy"
+                and r.get("status") in ("filled", "partially_filled")):
+            return str(r.get("time", today()))[:10]
+    return today()
+
+
 def write_portfolio(sleeve, budget, d):
     hold, _ = holdings(sleeve)
     spent = sum(h["cost"] for h in hold.values())
     pf = {"cash": round(max(budget - spent, 0), 2), "positions": []}
-    day = today()
     for s, h in hold.items():
         pf["positions"].append({"ticker": s, "shares": round(h["qty"], 6), "lots": [
-            {"id": s + "-1", "date": day, "shares": round(h["qty"], 6), "cost": round(h["cost"], 2)}]})
+            {"id": s + "-1", "date": first_buy(sleeve, s), "shares": round(h["qty"], 6),
+             "cost": round(h["cost"], 2)}]})
     with open(os.path.join(d, "trader", "portfolio.json"), "w") as f:
         json.dump(pf, f, indent=1)
     return hold
@@ -293,11 +312,79 @@ def plan_and_trade(sleeve, budget, cfg, alpaca, prices_for):
         if v["verdict"] != "PASS":
             log(sleeve, "BLOCKED", o["symbol"], o["side"], "; ".join(v["reasons"]))
             continue
+        if cfg["mode"] == "paper_approve":
+            add_pending(sleeve, v["index"], o, d)
+            continue
         if orders_today() >= cfg["max_orders_per_day"]:
             log(sleeve, "daily order limit reached, stopping")
             break
         placed += place(sleeve, o, cfg, alpaca, prices)
     return placed
+
+
+# ---------- approve mode: the broker tool's yes, one order at a time ----------
+
+def add_pending(sleeve, index, order, d):
+    """Park a risk-passed order until you tap Approve or Decline on the Stocks tab."""
+    pend = load("pending.json", [])
+    pid = "%s-%s-%s-%s" % (sleeve, today(), order["symbol"], order["side"])
+    if any(p["id"] == pid for p in pend):
+        return
+    plain = "%s %s of %s, %s order, %s" % (order["side"].upper(),
+                                           ("$" + order["notional"]) if "notional" in order else order.get("qty", "?") + " sh",
+                                           order["symbol"], order.get("type", "market"), order.get("time_in_force", "day"))
+    try:
+        _, out = run_tool("broker", ["show", "--index", index, "--json"], d)
+        t = json.loads(out)
+        plain = t.get("plain") or t.get("ticket", {}).get("plain") or plain
+    except Exception:
+        pass
+    pend.append({"id": pid, "sleeve": sleeve, "index": index, "order": order, "date": today(),
+                 "token": secrets.token_hex(6), "status": "pending", "plain": plain, "time": stamp()})
+    save("pending.json", pend)
+    log(sleeve, "WAITING for your yes:", plain)
+
+
+def decisions_step(cfg, alpaca):
+    """Act on the taps recorded by the dashboard: approve -> place, decline -> note it."""
+    pend = load("pending.json", [])
+    decisions = load("decisions.json", {})
+    changed = False
+    for p in pend:
+        if p["status"] != "pending":
+            continue
+        if p["date"] != today():
+            p["status"], changed = "expired", True
+            continue
+        say = decisions.get(p["id"])
+        if not say:
+            continue
+        d = sleeve_dir(p["sleeve"])
+        changed = True
+        try:
+            if say == "no":
+                run_tool("broker", ["decline", "--index", p["index"], "--reply", "no"], d)
+                p["status"] = "declined"
+                log(p["sleeve"], "you said no to", p["plain"])
+                continue
+            run_tool("broker", ["approve", "--index", p["index"], "--reply", "yes"], d)
+            if orders_today() >= cfg["max_orders_per_day"]:
+                p["status"] = "blocked: daily limit"
+                continue
+            prices = load("account.json", {}).get("positions", {})
+            n = place(p["sleeve"], p["order"], cfg, alpaca, {k: v["price"] for k, v in prices.items()})
+            rows = ledger()
+            bid = rows[-1].get("order_id", "") if rows else ""
+            p["status"] = "placed" if n else "failed"
+            if n:
+                run_tool("broker", ["result", "--index", p["index"], "--status", "placed",
+                                    "--broker-id", bid or "n/a"], d)
+        except Exception as ex:
+            p["status"] = "error"
+            p["error"] = str(ex)[:200]
+            log(p["sleeve"], "approve step ERROR", ex)
+    if changed:
+        save("pending.json", pend)
 
 
 def place(sleeve, o, cfg, alpaca, prices):
@@ -306,9 +393,9 @@ def place(sleeve, o, cfg, alpaca, prices):
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
            "notional": o.get("notional", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
            "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160]}
-    if cfg["mode"] != "paper_auto" or not alpaca.ready:
+    if cfg["mode"] not in ("paper_auto", "paper_approve") or not alpaca.ready:
         log(sleeve, "WOULD place", body["side"], body["symbol"], body.get("notional") or body.get("qty"),
-            "(watch mode)" if cfg["mode"] != "paper_auto" else "(no Alpaca keys yet)")
+            "(watch mode)" if cfg["mode"] not in ("paper_auto", "paper_approve") else "(no Alpaca keys yet)")
         rows = ledger()
         rows.append(row)
         save("ledger.json", rows)
@@ -428,6 +515,127 @@ def congress(cfg, state):
     state["congress_check"] = time.time()
 
 
+# ---------- news, tax and price alerts (they watch and report, never trade) ----------
+
+def all_symbols():
+    syms = set()
+    for s in ("berkshire", "screener"):
+        syms |= set(holdings(s)[0])
+    for s in ("berkshire", "screener"):
+        for fn, key in (("targets.json", "weights"), ("shortlist.json", "passed")):
+            try:
+                with open(os.path.join(sleeve_dir(s), "trader", fn)) as f:
+                    syms |= {x["ticker"] for x in json.load(f).get(key, [])}
+            except Exception:
+                pass
+    return sorted(syms)
+
+
+def news(cfg, state):
+    if state.get("news_check") and time.time() - state["news_check"] < 900:
+        return
+    syms = all_symbols()
+    if not syms:
+        return
+    d = path("news")
+    os.makedirs(os.path.join(d, "trader"), exist_ok=True)
+    with open(os.path.join(d, "trader", "config.json"), "w") as f:
+        json.dump({"sec_user_agent": cfg["sec_user_agent"]}, f)
+    _, out = run_tool("news", ["--tickers"] + syms + ["--hours", 48, "--all", "--json", "--dry-run"], d)
+    items = json.loads(out).get("items", [])
+    save("news.json", {"time": stamp(), "items": items[:40]})
+    state["news_check"] = time.time()
+    flagged = [i for i in items if i.get("tags")]
+    log("news: %d items on %d stocks, %d flagged" % (len(items), len(syms), len(flagged)))
+
+
+def tax(cfg):
+    """Cost-basis lots across both sleeves, gains by term, harvest and wash-sale warnings."""
+    d = path("tax")
+    os.makedirs(os.path.join(d, "trader"), exist_ok=True)
+    by_sym = {}
+    for s in ("berkshire", "screener"):
+        for sym, h in holdings(s)[0].items():
+            by_sym.setdefault(sym, []).append({"id": "%s-%s" % (sym, s), "date": first_buy(s, sym),
+                                               "shares": round(h["qty"], 6), "cost": round(h["cost"], 2)})
+    if not by_sym:
+        save("tax.json", {"time": stamp(), "positions": [], "harvest": [], "realized_ytd": {}})
+        return
+    pf = {"cash": 0, "positions": [{"ticker": t, "shares": round(sum(l["shares"] for l in lots), 6), "lots": lots}
+                                   for t, lots in sorted(by_sym.items())]}
+    acct = load("account.json", {}).get("positions", {})
+    px = {}
+    for s in ("berkshire", "screener"):
+        try:
+            with open(os.path.join(sleeve_dir(s), "trader", "prices.json")) as f:
+                px.update(json.load(f).get("prices", {}))
+        except Exception:
+            pass
+    px.update({k: v["price"] for k, v in acct.items() if v.get("price")})
+    with open(os.path.join(d, "trader", "portfolio.json"), "w") as f:
+        json.dump(pf, f)
+    with open(os.path.join(d, "trader", "prices.json"), "w") as f:
+        json.dump({"as_of": stamp(), "prices": px}, f)
+    _, rep = run_tool("tax", ["report", "--json"], d)
+    _, har = run_tool("tax", ["harvest", "--min-loss", 25, "--json"], d, ok_codes=(0, 1))
+    r = json.loads(rep)
+    save("tax.json", {"time": stamp(), "positions": r.get("positions", []), "lots": r.get("lots", []),
+                      "realized_ytd": r.get("realized_ytd", {}),
+                      "harvest": json.loads(har).get("candidates", [])})
+
+
+def notify(title, text):
+    if shutil.which("termux-notification"):
+        try:
+            subprocess.run(["termux-notification", "--title", title, "--content", text], timeout=10)
+        except Exception:
+            pass
+
+
+def alerts(cfg):
+    """Price alerts on what you hold: a stop under cost, a target over it, big daily moves, the bell."""
+    d = path("alerts")
+    os.makedirs(os.path.join(d, "trader"), exist_ok=True)
+    rules_file = os.path.join(d, "trader", "alerts.json")
+    try:
+        with open(rules_file) as f:
+            rules = json.load(f).get("rules", [])
+    except Exception:
+        rules = [{"id": "opening-bell", "type": "opening_bell"}]
+    have = {r["id"] for r in rules}
+    avg = {}
+    for s in ("berkshire", "screener"):
+        for sym, h in holdings(s)[0].items():
+            a = avg.setdefault(sym, [0.0, 0.0])
+            a[0] += h["cost"]
+            a[1] += h["qty"]
+    for sym, (cost, qty) in avg.items():
+        a = cost / qty if qty else 0
+        if not a:
+            continue
+        for rid, rule in (
+                ("%s-stop" % sym, {"symbol": sym, "type": "stop", "price": round(a * (1 - cfg["alert_stop_pct"] / 100), 2),
+                                   "note": "%d%% under your cost" % cfg["alert_stop_pct"]}),
+                ("%s-up" % sym, {"symbol": sym, "type": "above", "price": round(a * (1 + cfg["alert_up_pct"] / 100), 2),
+                                 "note": "%d%% over your cost" % cfg["alert_up_pct"]}),
+                ("%s-move" % sym, {"symbol": sym, "type": "pct_move", "pct": cfg["alert_move_pct"]})):
+            if rid not in have:
+                rules.append(dict(rule, id=rid))
+    with open(rules_file, "w") as f:
+        json.dump({"rules": rules}, f, indent=1)
+    _, out = run_tool("alerts", ["check", "--rules", "trader/alerts.json", "--json"], d, ok_codes=(0, 1))
+    res = json.loads(out)
+    hist = load("alerts_log.json", {"rules": 0, "rings": []})
+    for r in res.get("rings", []):
+        hist["rings"].append({"time": stamp(), "symbol": r.get("symbol", ""), "message": r.get("message", "")})
+        notify("stockbot " + (r.get("symbol") or "alert"), r.get("message", ""))
+        log("ALERT", r.get("symbol", ""), r.get("message", ""))
+    hist["rings"] = hist["rings"][-50:]
+    hist["rules"] = len(rules)
+    hist["errors"] = res.get("errors", [])[:3]
+    save("alerts_log.json", hist)
+
+
 # ---------- the loop ----------
 
 def snapshot(alpaca):
@@ -461,12 +669,20 @@ def cycle(cfg, alpaca):
         except Exception as ex:
             log(name, "ERROR", ex)
             status["errors"].append("%s: %s" % (name, str(ex)[:200]))
-    try:
-        congress(cfg, state)
-    except Exception as ex:
-        log("congress ERROR", ex)
-        status["errors"].append("congress: %s" % str(ex)[:200])
+    if cfg["mode"] == "paper_approve":
+        try:
+            decisions_step(cfg, alpaca)
+        except Exception as ex:
+            log("approvals ERROR", ex)
+            status["errors"].append("approvals: %s" % str(ex)[:200])
     snapshot(alpaca)
+    for name, fn in (("congress", lambda: congress(cfg, state)), ("news", lambda: news(cfg, state)),
+                     ("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg))):
+        try:
+            fn()
+        except Exception as ex:
+            log(name, "ERROR", ex)
+            status["errors"].append("%s: %s" % (name, str(ex)[:200]))
     save("state.json", state)
     save("status.json", status)
 
@@ -488,7 +704,8 @@ def main():
         cycle(cfg, alpaca)
         if cmd != "run":
             return
-        time.sleep(cfg["cycle_seconds"])
+        waiting = any(p["status"] == "pending" for p in load("pending.json", []))
+        time.sleep(30 if waiting else cfg["cycle_seconds"])
 
 
 if __name__ == "__main__":

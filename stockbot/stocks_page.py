@@ -179,6 +179,19 @@ def page(cfg):
     out.append("<h2>Screener: %s</h2>" % e(rule))
     out.append(table(["", "stock", "why"], rows, "waiting for first run"))
 
+    # orders waiting for your yes (approve mode)
+    pend = [p for p in stockbot.load("pending.json", []) if p.get("status") == "pending"
+            and p.get("date") == day]
+    if pend or cfg["mode"] == "paper_approve":
+        rows = []
+        for p in pend:
+            link = "/approve?id=%s&t=%s&d=" % (e(p["id"]), e(p["token"]))
+            rows.append([e(p["sleeve"]), e(p["plain"]),
+                         '<a class="coin ok" href="%syes">Approve</a> &nbsp; '
+                         '<a class="coin bad" href="%sno">Decline</a>' % (link, link)])
+        out.append("<h2>Waiting for your yes (%d)</h2>" % len(pend))
+        out.append(table(["sleeve", "order", ""], rows, "nothing waiting"))
+
     # orders
     rows = []
     for o in reversed(orders[-15:]):
@@ -205,6 +218,45 @@ def page(cfg):
     if unread:
         out.append('<div class="note muted">%d filings were scanned PDFs the tool can\'t read. '
                    'Links are in congress.json.</div>' % unread)
+
+    # news
+    nw = stockbot.load("news.json", {}).get("items", [])
+    rows = []
+    for n in nw[:12]:
+        tags = " ".join('<span class="bad">%s</span>' % e(t) for t in n.get("tags", []))
+        title = '<a class="coin" href="%s">%s</a>' % (e(n.get("link", "#")), e(n.get("title", "")[:70]))
+        rows.append([e(str(n.get("time", ""))[5:16].replace("T", " ")), e(", ".join(n.get("touches", []))[:12]),
+                     title + (" " + tags if tags else "")])
+    out.append("<h2>News on your stocks</h2>")
+    out.append(table(["time (UTC)", "stock", "headline"], rows, "nothing yet"))
+
+    # tax
+    tx = stockbot.load("tax.json", {})
+    rows = []
+    for p in tx.get("positions", []):
+        rows.append([sym_link(p["ticker"]), "$%.0f" % p.get("cost", 0), "$%.0f" % p.get("value", 0),
+                     money(p.get("short", 0)), money(p.get("long", 0))])
+    out.append("<h2>Tax: gains by stock</h2>")
+    out.append(table(["stock", "cost", "value", "short term", "long term"], rows, "no holdings yet"))
+    ry = tx.get("realized_ytd", {})
+    if ry:
+        out.append('<div class="note muted">realized this year: short %s &middot; long %s &middot; '
+                   'wash-sale disallowed $%.2f</div>' % (money(ry.get("short", 0)), money(ry.get("long", 0)),
+                                                         ry.get("disallowed", 0)))
+    rows = []
+    for h in tx.get("harvest", [])[:6]:
+        wash = "wash-sale risk until %s" % h.get("rebuy_on_or_after", "?") if h.get("wash") else "ok to sell"
+        rows.append([sym_link(h["ticker"]), money(h.get("loss", 0)), "%.1f%%" % h.get("pct", 0), e(wash)])
+    out.append("<h2>Tax-loss harvest ideas</h2>")
+    out.append(table(["stock", "loss", "%", "note"], rows, "no losses over $25"))
+    out.append('<div class="note muted">arithmetic on your lots, not tax advice</div>')
+
+    # alerts
+    al = stockbot.load("alerts_log.json", {"rules": 0, "rings": []})
+    rows = [[e(r.get("time", ""))[5:16], sym_link(r.get("symbol", "")), e(r.get("message", ""))[:90]]
+            for r in reversed(al.get("rings", [])[-10:])]
+    out.append("<h2>Price alerts (%d rules)</h2>" % al.get("rules", 0))
+    out.append(table(["time", "stock", "what"], rows, "nothing has rung"))
 
     # errors
     errs = status.get("errors") or []
@@ -242,8 +294,31 @@ def stock_page(sym):
             "<h2>Orders</h2>", table(["time", "sleeve", "side", "amount", "status"], rows, "no orders for this stock")]
 
 
+def approve_page(query):
+    """Record a tap. The bot places (or drops) the order on its next cycle."""
+    pid = (query.get("id") or [""])[0]
+    tok = (query.get("t") or [""])[0]
+    say = (query.get("d") or [""])[0]
+    for p in stockbot.load("pending.json", []):
+        if p["id"] == pid and p["token"] == tok and p["status"] == "pending" and say in ("yes", "no"):
+            dec = stockbot.load("decisions.json", {})
+            dec[pid] = say
+            stockbot.save("decisions.json", dec)
+            return ["<meta http-equiv='refresh' content='2;url=/stocks'>",
+                    "<h1>%s</h1><div class='note'>%s recorded. The bot acts on it within a minute.</div>"
+                    "<a class='back' href='/stocks'>&larr; back</a>"
+                    % ("yes" if say == "yes" else "no", e(p["plain"]))]
+    return ["<h1>nope</h1><div class='note'>That order isn't waiting anymore.</div>"
+            "<a class='back' href='/stocks'>&larr; back</a>"]
+
+
 def render(pathname, query, css):
     cfg = stockbot.config()
+    if pathname == "/approve":
+        return ("<!doctype html><html><head><meta charset='utf-8'>"
+                "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+                "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" +
+                "".join(approve_page(query)) + "</body></html>")
     if pathname == "/s":
         body = stock_page((query.get("sym") or [""])[0])
         refresh = ""
