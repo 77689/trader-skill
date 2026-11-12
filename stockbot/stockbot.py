@@ -20,6 +20,7 @@ runs in watch mode: it plans everything but places nothing.
 
 import datetime
 import json
+import math
 import os
 import secrets
 import shutil
@@ -28,6 +29,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+import signals
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -63,6 +66,15 @@ DEFAULTS = {
     "alert_move_pct": 5,           # ... or moves this much in a day
     "berkshire_budget": 2500,
     "screener_budget": 2500,
+    "swing_budget": 2500,          # EMA44 pullback trades (from the strategy books)
+    "breakout_budget": 2500,       # 52-week-high breakouts, confirmed
+    "trade_risk_pct": 1.0,         # swing/breakout: lose at most this % of the sleeve per trade
+    "trade_max_position_pct": 25,  # ... and never more than this % of the sleeve in one stock
+    "trade_max_positions": 6,
+    "core_stop_pct": 15,           # berkshire/screener: sell if a stock falls this far under cost (0 = off)
+    "core_cooldown_days": 30,      # ... and don't buy it back for this many days
+    "trade_cooldown_days": 5,      # swing/breakout: wait this long before re-entering a stock
+    "pause_after_stops": 2,        # this many losing stops in a day = no new buys until tomorrow
     "cash_buffer_pct": 10,
     "max_position_pct": 40,        # per sleeve, so 5 stocks can fill the sleeve
     "max_order_usd": 2000,
@@ -76,6 +88,10 @@ DEFAULTS = {
     "refresh_days": 7,
     "sec_user_agent": "",
 }
+
+
+SLEEVES = ("berkshire", "screener", "swing", "breakout")
+CORE = ("berkshire", "screener")
 
 
 def now():
@@ -303,25 +319,245 @@ def plan_and_trade(sleeve, budget, cfg, alpaca, prices_for):
         return 0
     with open(orders_file) as f:
         orders = json.load(f).get("orders", [])
+    cool = cooling(sleeve)
+    skipped = [o["symbol"] for o in orders if o["side"] == "buy" and o["symbol"] in cool]
+    if skipped:
+        log(sleeve, "not buying back after a stop-loss:", ", ".join(skipped))
+    if paused(cfg):
+        skipped += [o["symbol"] for o in orders if o["side"] == "buy"]
+    orders = [o for o in orders if not (o["side"] == "buy" and o["symbol"] in skipped)]
     if not orders:
         log(sleeve, "no trades needed")
         return 0
+    return risk_and_place(sleeve, orders, d, cfg, alpaca, prices)
+
+
+def risk_and_place(sleeve, orders, d, cfg, alpaca, prices, exit_orders=False):
+    """Write orders.json, run the risk tool, place (or park for approval) what PASSES."""
+    with open(os.path.join(d, "trader", "orders.json"), "w") as f:
+        json.dump({"created_by": "stockbot", "created_at": stamp(), "status": "proposed", "paper": True,
+                   "orders": orders}, f, indent=1)
     _, out = run_tool("risk", ["--json"], d, ok_codes=(0, 1))
     verdicts = json.loads(out)["results"]
     placed = 0
     for v in verdicts:
         o = dict(orders[v["index"] - 1])
         if v["verdict"] != "PASS":
-            log(sleeve, "BLOCKED", o["symbol"], o["side"], "; ".join(v["reasons"]))
-            continue
+            soft = all(r.split(":")[0].strip() in ("size", "daily limit") for r in v["reasons"])
+            if exit_orders and soft:
+                # a stop-loss or target sale must not be stuck behind the buy-size cap
+                log(sleeve, "exit goes through despite:", "; ".join(v["reasons"]))
+            else:
+                log(sleeve, "BLOCKED", o["symbol"], o["side"], "; ".join(v["reasons"]))
+                continue
         if cfg["mode"] == "paper_approve":
             add_pending(sleeve, v["index"], o, d)
             continue
-        if orders_today() >= cfg["max_orders_per_day"]:
+        if not exit_orders and orders_today() >= cfg["max_orders_per_day"]:
             log(sleeve, "daily order limit reached, stopping")
             break
         placed += place(sleeve, o, cfg, alpaca, prices)
     return placed
+
+
+# ---------- stop-losses, targets and the 2-stop pause ----------
+
+def stops():
+    return load("stops.json", {})
+
+
+def stopouts():
+    return load("stopouts.json", [])
+
+
+def cooling(sleeve):
+    """Symbols this sleeve sold at a loss recently and should not buy back yet."""
+    cfg = config()
+    days = cfg["core_cooldown_days"] if sleeve in CORE else cfg["trade_cooldown_days"]
+    cut = (now() - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+    return {x["symbol"] for x in stopouts() if x["sleeve"] == sleeve and x["time"][:10] >= cut
+            and x.get("loss", True)}
+
+
+def sold_today(sleeve):
+    return {r["symbol"] for r in ledger() if r.get("sleeve") == sleeve and r.get("side") == "sell"
+            and str(r.get("time", "")).startswith(today()) and r.get("status") not in ("rejected", "canceled")}
+
+
+def paused(cfg):
+    n = sum(1 for x in stopouts() if x["time"][:10] == today() and x.get("loss"))
+    return n >= cfg["pause_after_stops"] > 0
+
+
+def exits(cfg, alpaca, state, is_open):
+    """Every position has a stop. Swing positions also have a 2R target. Checked each
+    cycle while the market is open; stops only ever move up."""
+    st, changed = stops(), False
+    held_all = {s: holdings(s)[0] for s in SLEEVES}
+    syms = sorted({x for h in held_all.values() for x in h})
+    if not syms:
+        if st:
+            save("stops.json", {})
+        return
+    for s in SLEEVES:                                   # make sure every holding has a stop
+        book = st.setdefault(s, {})
+        for sym, h in held_all[s].items():
+            e = book.get(sym)
+            if not e:
+                if s in CORE:
+                    if not cfg["core_stop_pct"]:
+                        continue
+                    e = {"stop": round(h["avg"] * (1 - cfg["core_stop_pct"] / 100.0), 2), "r": None,
+                         "target_r": None, "rule": "fixed", "since": today()}
+                else:
+                    e = {"stop": round(h["avg"] * 0.92, 2), "r": round(h["avg"] * 0.08, 2), "target_r": None,
+                         "rule": "be1r", "since": today()}
+                book[sym] = e
+                changed = True
+        for sym in list(book):                          # forget stops on things no longer held
+            if sym not in held_all[s] and book[sym].get("since", "") < today():
+                del book[sym]
+                changed = True
+    # once a day, move swing/breakout stops up from the daily bars
+    if state.get("stops_updated") != today():
+        need = sorted({sym for s in ("swing", "breakout") for sym in held_all[s]})
+        if need:
+            b = signals.bars(need, path("bars"), today())
+            for s in ("swing", "breakout"):
+                for sym, h in held_all[s].items():
+                    e = st[s].get(sym)
+                    rows = signals.completed(b.get(sym, []), today())
+                    if not e or not rows:
+                        continue
+                    ns = signals.new_stop(e["rule"], e["stop"], h["avg"], e.get("r"), signals.prep(rows))
+                    if ns > e["stop"]:
+                        log(s, "stop on", sym, "raised %.2f -> %.2f" % (e["stop"], ns))
+                        e["stop"] = ns
+                        changed = True
+        state["stops_updated"] = today()
+    if changed:
+        save("stops.json", st)
+    if not is_open:
+        return
+    px = quotes(syms, path("sleeves", "exits"))
+    done = state.setdefault("exited", {})
+    if done.get("day") != today():
+        done.clear()
+        done["day"] = today()
+    for s in SLEEVES:
+        orders = []
+        for sym, h in held_all[s].items():
+            e, p = st.get(s, {}).get(sym), px.get(sym)
+            if not e or not p or done.get(s + ":" + sym) or sym in sold_today(s):
+                continue
+            why = None
+            if p <= e["stop"]:
+                why = "stop-loss: %.2f is at/under the stop %.2f" % (p, e["stop"])
+            elif e.get("target_r") and e.get("r") and p >= h["avg"] + e["target_r"] * e["r"]:
+                why = "target hit: %.2f reached %.0fx the risk over cost %.2f" % (p, e["target_r"], h["avg"])
+            if not why:
+                continue
+            qty = math.floor(h["qty"] * 1e6) / 1e6
+            if qty <= 0:
+                continue
+            orders.append({"symbol": sym, "side": "sell", "qty": ("%.6f" % qty).rstrip("0").rstrip("."), "type": "market",
+                           "time_in_force": "day", "why": why})
+            o = orders[-1]
+            o["_stop"], o["_avg"], o["_loss"] = e["stop"], round(h["avg"], 2), p < h["avg"]
+            log(s, "EXIT", sym, why)
+        if orders:
+            d = write_sleeve_config(s, cfg, cfg[s + "_budget"])
+            write_portfolio(s, cfg[s + "_budget"], d)
+            meta = {o["symbol"]: (o.pop("_stop"), o.pop("_avg"), o.pop("_loss"), o["why"]) for o in orders}
+            risk_and_place(s, orders, d, cfg, alpaca, px, exit_orders=True)
+            sold = {r["symbol"] for r in ledger() if r.get("sleeve") == s and r.get("side") == "sell"
+                    and str(r.get("time", "")).startswith(today()) and r.get("status") not in ("rejected", "canceled")}
+            for sym, (stp, avg, loss, why) in meta.items():
+                if sym not in sold:
+                    continue                    # not placed: try again next cycle
+                done[s + ":" + sym] = True
+                notify("stockbot %s %s" % (s, sym), why)
+                if why.startswith("stop"):
+                    rows = stopouts()
+                    rows.append({"time": stamp(), "sleeve": s, "symbol": sym, "price": px.get(sym),
+                                 "avg": avg, "stop": stp, "loss": loss})
+                    save("stopouts.json", rows[-200:])
+    if paused(cfg) and state.get("pause_said") != today():
+        log("%d losing stops today: no new buys until tomorrow (the books' 2-stop rule)" % cfg["pause_after_stops"])
+        notify("stockbot paused", "2 stop-losses hit today, no new buys until tomorrow")
+        state["pause_said"] = today()
+
+
+# ---------- swing and breakout: daily-bar trades with stops ----------
+
+def trade_sleeve(name, cfg, alpaca, state, is_open):
+    budget = cfg[name + "_budget"]
+    d = write_sleeve_config(name, cfg, budget)
+    if not is_open or state.get(name + "_plan") == today():
+        return
+    state[name + "_plan"] = today()
+    if paused(cfg):
+        log(name, "paused today after stop-losses, no new trades")
+        return
+    hold, realized = holdings(name)
+    slots = cfg["trade_max_positions"] - len(hold)
+    if slots <= 0:
+        log(name, "full (%d positions)" % len(hold))
+        return
+    b = signals.bars(cfg["universe"], path("bars"), today())
+    cool, cands = cooling(name), []
+    for sym in cfg["universe"]:
+        rows = signals.completed(b.get(sym, []), today())
+        if sym in hold or sym in cool or len(rows) < 80:
+            continue
+        sig = signals.SIGNALS[name](signals.prep(rows))
+        if sig:
+            sig["symbol"], sig["vol"] = sym, rows[-1][5]
+            cands.append(sig)
+    save(name + "_signals.json", {"time": stamp(), "signals": cands})
+    if not cands:
+        log(name, "no setups today")
+        return
+    cands.sort(key=lambda x: -x["vol"])
+    px = quotes([c["symbol"] for c in cands] + list(hold), d)
+    spent = sum(h["cost"] for h in hold.values())
+    equity = budget + realized
+    cash = max(budget + realized - spent, 0) * (1 - cfg["cash_buffer_pct"] / 100.0)
+    st, orders = stops(), []
+    for c in cands[:slots]:
+        p = px.get(c["symbol"])
+        if not p:
+            continue
+        risk = p - c["stop"]
+        if risk <= 0 or risk / p > 0.12:
+            log(name, "skip", c["symbol"], "price %.2f vs stop %.2f" % (p, c["stop"]))
+            continue
+        usd = min(equity * cfg["trade_risk_pct"] / 100.0 / risk * p,
+                  budget * cfg["trade_max_position_pct"] / 100.0, cash)
+        usd = min(usd, cfg["max_order_usd"])
+        if usd < max(cfg["min_order_usd"], 1):
+            log(name, "skip", c["symbol"], "not enough cash left in the sleeve")
+            continue
+        cash -= usd
+        orders.append({"symbol": c["symbol"], "side": "buy", "notional": "%.2f" % usd, "type": "market",
+                       "time_in_force": "day",
+                       "why": "%s. Stop %.2f, %s" % (c["why"], c["stop"],
+                                                    "target 2x risk" if c["target_r"] else "trailing stop")})
+        st.setdefault(name, {})[c["symbol"]] = {"stop": c["stop"], "r": round(risk, 2), "target_r": c["target_r"],
+                                                "rule": c["rule"], "since": today()}
+        log(name, "SETUP", c["symbol"], "$%.2f" % usd, c["why"])
+    if orders:
+        save("stops.json", st)
+        write_portfolio(name, budget, d)
+        risk_and_place(name, orders, d, cfg, alpaca, px)
+
+
+def swing(cfg, alpaca, state, is_open):
+    trade_sleeve("swing", cfg, alpaca, state, is_open)
+
+
+def breakout(cfg, alpaca, state, is_open):
+    trade_sleeve("breakout", cfg, alpaca, state, is_open)
 
 
 # ---------- approve mode: the broker tool's yes, one order at a time ----------
@@ -393,7 +629,7 @@ def place(sleeve, o, cfg, alpaca, prices):
     body = {k: o[k] for k in ("symbol", "side", "qty", "notional", "type", "time_in_force") if k in o}
     body["client_order_id"] = "%s-%s-%s-%s" % (sleeve, today(), o["symbol"], o["side"])
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
-           "notional": o.get("notional", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
+           "notional": o.get("notional", ""), "want_qty": o.get("qty", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
            "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160],
            "spy": float(load("spy.json", {}).get("price") or 0)}
     if cfg["mode"] not in ("paper_auto", "paper_approve") or not alpaca.ready:
@@ -540,7 +776,7 @@ def congress(cfg, state):
 
 def all_symbols():
     syms = set()
-    for s in ("berkshire", "screener"):
+    for s in SLEEVES:
         syms |= set(holdings(s)[0])
     for s in ("berkshire", "screener"):
         for fn, key in (("targets.json", "weights"), ("shortlist.json", "passed")):
@@ -575,7 +811,7 @@ def tax(cfg):
     d = path("tax")
     os.makedirs(os.path.join(d, "trader"), exist_ok=True)
     by_sym = {}
-    for s in ("berkshire", "screener"):
+    for s in SLEEVES:
         for sym, h in holdings(s)[0].items():
             by_sym.setdefault(sym, []).append({"id": "%s-%s" % (sym, s), "date": first_buy(s, sym),
                                                "shares": round(h["qty"], 6), "cost": round(h["cost"], 2)})
@@ -586,7 +822,7 @@ def tax(cfg):
                                    for t, lots in sorted(by_sym.items())]}
     acct = load("account.json", {}).get("positions", {})
     px = {}
-    for s in ("berkshire", "screener"):
+    for s in SLEEVES:
         try:
             with open(os.path.join(sleeve_dir(s), "trader", "prices.json")) as f:
                 px.update(json.load(f).get("prices", {}))
@@ -625,7 +861,7 @@ def alerts(cfg):
         rules = [{"id": "opening-bell", "type": "opening_bell"}]
     have = {r["id"] for r in rules}
     avg = {}
-    for s in ("berkshire", "screener"):
+    for s in SLEEVES:
         for sym, h in holdings(s)[0].items():
             a = avg.setdefault(sym, [0.0, 0.0])
             a[0] += h["cost"]
@@ -804,7 +1040,12 @@ def cycle(cfg, alpaca):
             save("spy.json", {"price": spy, "time": stamp()})
     except Exception as ex:
         log("spy quote error:", ex)
-    for name, fn in (("berkshire", berkshire), ("screener", screener)):
+    try:
+        exits(cfg, alpaca, state, is_open)
+    except Exception as ex:
+        log("stops", "ERROR", ex)
+        status["errors"].append("stops: %s" % str(ex)[:200])
+    for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout)):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:

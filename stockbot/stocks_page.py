@@ -104,6 +104,12 @@ def run_label(n):
     return '<span class="muted">?</span>'
 
 
+def amount(o):
+    if o.get("notional"):
+        return "$%s" % e(o["notional"])
+    return "%g sh" % num(o.get("qty") or o.get("want_qty"))
+
+
 def sym_link(sym):
     if not re.match(r"^[A-Za-z.\-]{1,6}$", sym or ""):
         return e(sym)
@@ -112,7 +118,7 @@ def sym_link(sym):
 
 def price_map(account):
     px = {}
-    for s in ("berkshire", "screener"):
+    for s in stockbot.SLEEVES + ("exits",):
         try:
             with open(stockbot.path("sleeves", s, "trader", "prices.json")) as f:
                 px.update(json.load(f).get("prices", {}))
@@ -163,7 +169,8 @@ def page(cfg):
     # sleeves
     rows, tot_val, tot_cost, tot_real = [], 0.0, 0.0, 0.0
     held_rows = []
-    for name, budget in (("berkshire", cfg["berkshire_budget"]), ("screener", cfg["screener_budget"])):
+    for name in stockbot.SLEEVES:
+        budget = cfg[name + "_budget"]
         hold, realized = stockbot.holdings(name)
         cost = sum(h["cost"] for h in hold.values())
         val = sum(h["qty"] * px.get(s, h["avg"]) for s, h in hold.items())
@@ -200,7 +207,7 @@ def page(cfg):
     # the bot against just buying the S&P 500 with the same dollars on the same days
     spy_now = num(stockbot.load("spy.json", {}).get("price"))
     srows, tn, tb, ts = [], 0.0, 0.0, 0.0
-    for name in ("berkshire", "screener"):
+    for name in stockbot.SLEEVES:
         net, bot, spy = vs_spy(name, px, spy_now)
         if net <= 0:
             continue
@@ -218,6 +225,45 @@ def page(cfg):
     out.append(table(["sleeve", "budget", "in", "now", "open P&L", "realized", "stocks"], rows))
     out.append("<h2>Holdings</h2>")
     out.append(table(["sleeve", "stock", "shares", "avg", "now", "value", "P&L"], held_rows, "no holdings yet"))
+
+    # stops and targets on every position
+    st, rows = stockbot.load("stops.json", {}), []
+    for name in stockbot.SLEEVES:
+        hold, _ = stockbot.holdings(name)
+        for sym, h in sorted(hold.items()):
+            x = st.get(name, {}).get(sym)
+            if not x:
+                continue
+            p = px.get(sym, h["avg"])
+            tgt = h["avg"] + x["target_r"] * x["r"] if x.get("target_r") and x.get("r") else None
+            kind = {"fixed": "fixed %d%% under cost" % cfg["core_stop_pct"], "be1r": "to cost at +1R",
+                    "trail10": "trails 10-day low"}.get(x.get("rule"), x.get("rule", ""))
+            rows.append([name, sym_link(sym), "%.2f" % h["avg"], "%.2f" % p, '<span class="bad">%.2f</span>' % x["stop"],
+                         pct((x["stop"] / p - 1) * 100 if p else 0),
+                         '<span class="ok">%.2f</span>' % tgt if tgt else '<span class="muted">-</span>',
+                         '<span class="why">%s</span>' % e(kind)])
+    out.append("<h2>Stops &amp; targets</h2>")
+    paused = stockbot.paused(cfg)
+    if paused:
+        out.append('<div class="note bad">2 stop-losses hit today: no new buys until tomorrow.</div>')
+    out.append(table(["sleeve", "stock", "cost", "now", "stop", "to stop", "target", "rule"], rows,
+                     "no positions yet"))
+    hits = [x for x in stockbot.load("stopouts.json", []) if x.get("time", "")[:10] >= time.strftime(
+        "%Y-%m-%d", time.localtime(time.time() - 14 * 86400))]
+    if hits:
+        out.append(table(["time", "sleeve", "stock", "sold at", "cost", ""],
+                         [[e(x["time"][5:16]), e(x["sleeve"]), sym_link(x["symbol"]), "%.2f" % x["price"],
+                           "%.2f" % x["avg"], '<span class="bad">loss</span>' if x.get("loss") else "even/up"]
+                          for x in reversed(hits[-10:])]))
+
+    # today's swing / breakout setups
+    for name, title in (("swing", "Swing setups (EMA44 pullback)"), ("breakout", "Breakout setups (52-week high)")):
+        sg = stockbot.load(name + "_signals.json", {})
+        rows = [[sym_link(c["symbol"]), "%.2f" % c["stop"], '<span class="why">%s</span>' % e(c["why"])]
+                for c in sg.get("signals", [])]
+        out.append("<h2>%s</h2>" % title)
+        out.append(table(["stock", "stop", "why"], rows,
+                         "no setups %s" % ("on " + e(sg["time"][:10]) if sg.get("time") else "checked yet")))
 
     # berkshire targets
     rows = []
@@ -268,7 +314,7 @@ def page(cfg):
         side = o.get("side", "")
         rows.append([e(o.get("time", ""))[5:16], e(o.get("sleeve", "")),
                      '<span class="%s">%s</span>' % ("pos" if side == "buy" else "neg", e(side)),
-                     sym_link(o.get("symbol", "")), "$%s" % e(o.get("notional", "")), e(o.get("status", ""))])
+                     sym_link(o.get("symbol", "")), amount(o), e(o.get("status", ""))])
     out.append("<h2>Last 15 orders</h2>")
     out.append(table(["time", "sleeve", "side", "stock", "amount", "status"], rows, "no orders yet"))
 
@@ -348,9 +394,9 @@ def stock_page(sym):
     for o in reversed(stockbot.load("ledger.json", [])):
         if o.get("symbol") == sym:
             rows.append([e(o.get("time", ""))[5:16], e(o.get("sleeve", "")), e(o.get("side", "")),
-                         "$%s" % e(o.get("notional", "")), e(o.get("status", ""))])
+                         amount(o), e(o.get("status", ""))])
     held = []
-    for name in ("berkshire", "screener"):
+    for name in stockbot.SLEEVES:
         h = stockbot.holdings(name)[0].get(sym)
         if h:
             held.append("%s: %.3f sh @ %.2f" % (name, h["qty"], h["avg"]))

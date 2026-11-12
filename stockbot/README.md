@@ -71,3 +71,22 @@ stake reports, new 13F) and shows them on the Filings tab. New items trigger a
 phone notification. Form 4 lands about 2 business days after a trade, weeks
 ahead of the 13F. Add more people with `watch_filers` in config.json
 (`{"Name": "CIK"}`). Trades in Berkshire's own stock by its insiders are skipped.
+
+## Swing and Breakout sleeves, stop-losses
+
+Two more sleeves ($2,500 each) trade rules from the strategy books, picked
+after a 9-year backtest on the 30-stock universe (`signals.py`):
+
+| sleeve | buys | exits |
+| --- | --- | --- |
+| swing | dip to a rising 44-day EMA, then a turn up (skips huge candles) | stop under the 5-day low with a buffer, target 2x the risk, stop to cost at 1x |
+| breakout | new 52-week high on 1.5x volume, confirmed by the next close | stop under the 10-day low, then trails the 10-day low |
+
+Each trade risks about 1% of the sleeve (`trade_risk_pct`), max 25% of the
+sleeve in one stock, max 6 positions. Orders still go through the risk tool.
+
+Every position in every sleeve has a stop (`stops.json`, shown on the Stocks
+tab). Berkshire and screener positions are sold if they fall `core_stop_pct`
+(15%) under cost and not bought back for 30 days. Two losing stops in a day
+pause new buys until tomorrow (`pause_after_stops`). Stop and target sales go
+through even when they are over the buy-size cap.
