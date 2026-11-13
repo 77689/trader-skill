@@ -92,7 +92,7 @@ def table(headers, rows, empty="nothing yet"):
 
 
 SHARED = False                     # True while serving a request that came through the share link
-PUBLIC = ("/stocks", "/s", "/filings", "/charts")
+PUBLIC = ("/stocks", "/s", "/filings", "/charts", "/live")
 
 
 def guard(pathname, headers):
@@ -125,7 +125,7 @@ def tabs(active):
 
 
 def handles(pathname):
-    return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts")
+    return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts", "/live")
 
 
 def filings_page(cfg):
@@ -191,6 +191,7 @@ def price_map(account):
     for sym, p in (account.get("positions") or {}).items():
         if p.get("price"):
             px[sym] = p["price"]
+    px.update(charts.live())
     return px
 
 
@@ -670,6 +671,9 @@ def render(pathname, query, css):
                 "<meta name='viewport' content='width=device-width, initial-scale=1'>"
                 "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" +
                 "".join(approve_page(query)) + "</body></html>")
+    if pathname == "/live":
+        d = stockbot.load("live.json", {})
+        return json.dumps({"time": d.get("time"), "session": d.get("session"), "prices": charts.live()})
     if pathname == "/filings":
         body = filings_page(cfg)
         refresh = "<meta http-equiv='refresh' content='60'>"

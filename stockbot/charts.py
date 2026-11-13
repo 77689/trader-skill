@@ -12,6 +12,7 @@ The stat strip shows trend, 12-month momentum, distance from the 52-week high,
 
 import json
 import math
+import time
 import os
 import statistics
 
@@ -25,16 +26,31 @@ def e(s):
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+def live():
+    d = stockbot.load("live.json", {})
+    return d.get("prices", {}) if time.time() - d.get("ts", 0) < 1800 else {}
+
+
 def bars(sym):
+    rows = []
     for d in ("bars", "bars_adj"):
         try:
             with open(stockbot.path(d, sym + ".json")) as f:
                 rows = json.load(f)["rows"]
             if rows:
-                return rows
+                break
         except Exception:
             pass
-    return []
+    p = live().get(sym)
+    if rows and p:                       # today's candle follows the live price
+        day = stockbot.ny_now().strftime("%Y-%m-%d")
+        rows = [list(r) for r in rows]
+        if rows[-1][0] == day:
+            r = rows[-1]
+            rows[-1] = [day, r[1], max(r[2], p), min(r[3], p), p, r[5]]
+        elif stockbot.ny_now().weekday() < 5 and rows[-1][0] < day:
+            rows.append([day, rows[-1][4], max(p, rows[-1][4]), min(p, rows[-1][4]), p, 0])
+    return rows
 
 
 def sma(xs, n):
@@ -345,6 +361,26 @@ JS = """<script>
     svg.addEventListener('touchend', function(){ setTimeout(hide, 1500); });
   }
   document.querySelectorAll('.chbox').forEach(hook);
+  var last = {};
+  function tick(){
+    fetch('/live').then(function(r){ return r.json(); }).then(function(d){
+      var px = d.prices || {};
+      document.querySelectorAll('[data-live]').forEach(function(el){
+        var s = el.dataset.live, p = px[s];
+        if (!p) return;
+        var prev = parseFloat(el.dataset.prev || el.dataset.base || p);
+        var base = parseFloat(el.dataset.base || p);
+        var chg = (p / base - 1) * 100;
+        el.textContent = (p >= 1000 ? p.toFixed(0) : p.toFixed(2)) + (el.dataset.base ? ' ' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%' : '');
+        el.style.color = p >= base ? '#26a69a' : '#ef5350';
+        if (p !== prev) { el.classList.remove('fu','fd'); void el.offsetWidth; el.classList.add(p > prev ? 'fu' : 'fd'); }
+        el.dataset.prev = p;
+      });
+      var t = document.getElementById('livet');
+      if (t) t.textContent = 'live ' + (d.time || '').slice(11) + (d.session && d.session !== 'regular' ? ' (' + d.session + ')' : '');
+    }).catch(function(){});
+  }
+  if (document.querySelector('[data-live]')) { tick(); setInterval(tick, 10000); }
 })();
 </script>"""
 
@@ -358,7 +394,8 @@ def legend():
 
 
 def charts_page(cfg, tabs):
-    out = [tabs("charts"), '<div class="term"><h1>charts</h1>']
+    out = [tabs("charts"), '<div class="term"><h1>charts</h1><div class="sub" id="livet">prices update every 10 s'
+                           ' while the market is open</div>']
     out.append("<h2>Bot vs SPY vs QQQ</h2>")
     out.append(equity_svg(stockbot.load("history.json", [])))
     held = {}
@@ -375,8 +412,8 @@ def charts_page(cfg, tabs):
         st = stats(rows)
         px = ""
         if st:
-            px = '<span class="px" style="color:%s">%s %+.2f%%</span>' % (UP if st["chg"] >= 0 else DN,
-                                                                        _fmt(st["last"]), st["chg"])
+            px = ('<span class="px fl" data-live="%s" data-base="%.4f" style="color:%s">%s %+.2f%%</span>'
+                  % (e(sym), rows[-2][4], UP if st["chg"] >= 0 else DN, _fmt(st["last"]), st["chg"]))
         out.append('<div class="cpanel"><div class="chead"><a class="coin" href="/s?sym=%s"><b>%s</b></a>'
                    '<span class="muted">%s</span>%s</div>%s%s</div>'
                    % (e(sym), e(sym), e(", ".join(sl)), px,

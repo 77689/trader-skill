@@ -104,6 +104,7 @@ DEFAULTS = {
     "universe": UNIVERSE,
     "congress_days_back": 14,
     "cycle_seconds": 300,
+    "live_seconds": 15,            # live prices for the dashboard every 15 s (Alpaca data, free IEX feed)
     "refresh_days": 7,
     "sec_user_agent": "",
 }
@@ -1609,6 +1610,35 @@ def cycle(cfg, alpaca):
 
 
 SLOW = {"thread": None}
+LIVE = {"thread": None}
+
+
+def live_prices(alpaca, cfg):
+    """Every few seconds: latest trade for everything held plus SPY/QQQ, one request,
+    into live.json for the dashboard. Display only; trading never uses it."""
+    while True:
+        try:
+            ses = load("state.json", {}).get("session") or "regular"
+            if ses != "closed" and alpaca.ready:
+                syms = sorted({s for n in SLEEVES for s in holdings(n)[0]} | {"SPY", "QQQ"})
+                feed = "overnight" if ses == "overnight" else "iex"
+                d = alpaca.data("/v2/stocks/trades/latest?symbols=%s&feed=%s" % (",".join(syms), feed))
+                px = {s: t["p"] for s, t in (d.get("trades") or {}).items() if t.get("p")}
+                if px:
+                    old = load("live.json", {}).get("prices", {})
+                    old.update(px)
+                    save("live.json", {"time": stamp(), "ts": time.time(), "session": ses, "prices": old})
+        except Exception:
+            pass
+        time.sleep(max(5, cfg.get("live_seconds", 15)))
+
+
+def start_live(alpaca, cfg):
+    import threading
+    if LIVE["thread"] and LIVE["thread"].is_alive():
+        return
+    LIVE["thread"] = threading.Thread(target=live_prices, args=(alpaca, cfg), daemon=True)
+    LIVE["thread"].start()
 
 
 def chart_bars(cfg, st):
@@ -1667,6 +1697,8 @@ def main():
                           "orders": len(ledger())}, indent=1))
         return
     log("stockbot start, mode=%s, alpaca keys=%s, base=%s" % (cfg["mode"], alpaca.ready, BASE))
+    if cmd == "run":
+        start_live(alpaca, cfg)
     while True:
         cfg = config()
         cycle(cfg, alpaca)
