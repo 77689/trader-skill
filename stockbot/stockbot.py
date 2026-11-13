@@ -1611,11 +1611,32 @@ def cycle(cfg, alpaca):
 SLOW = {"thread": None}
 
 
+def chart_bars(cfg, st):
+    """Fresh daily bars (including today's candle) for every holding plus SPY and QQQ,
+    for the Charts tab. Every 30 minutes, in the background."""
+    if time.time() - st.get("chart_bars", 0) < 1800:
+        return
+    import concurrent.futures
+    syms = sorted({s for n in SLEEVES for s in holdings(n)[0]} | {"SPY", "QQQ"})
+    os.makedirs(path("bars"), exist_ok=True)
+
+    def one(s):
+        try:
+            rows = signals.fetch(s)
+            if rows:
+                save(os.path.join("bars", s + ".json"), {"fetched": today(), "rows": rows})
+        except Exception:
+            pass
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(one, syms))
+    st["chart_bars"] = time.time()
+
+
 def slow_jobs(cfg):
     """News, Congress and SEC filings only watch and report, and they are the slowest
     parts, so they run in the background and never hold up trading."""
     st, errors = load("slow_state.json", {}), []
-    for name, fn in (("congress", congress), ("news", news), ("filings", filings)):
+    for name, fn in (("charts", chart_bars), ("congress", congress), ("news", news), ("filings", filings)):
         try:
             fn(cfg, st)
         except Exception as ex:

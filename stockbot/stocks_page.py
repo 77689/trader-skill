@@ -14,6 +14,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
+import charts  # noqa: E402
 
 EXTRA = """
 .tabs { display:flex; gap:8px; margin:2px 0 12px; }
@@ -91,7 +92,7 @@ def table(headers, rows, empty="nothing yet"):
 
 
 SHARED = False                     # True while serving a request that came through the share link
-PUBLIC = ("/stocks", "/s", "/filings")
+PUBLIC = ("/stocks", "/s", "/filings", "/charts")
 
 
 def guard(pathname, headers):
@@ -119,11 +120,12 @@ def tabs(active):
     def a(href, label, key):
         return '<a href="%s"%s>%s</a>' % (href, ' class="on"' if key == active else "", label)
     return '<div class="tabs">%s%s%s</div>' % ("" if SHARED else a("/", "Memecoins", "memebot"),
-                                              a("/stocks", "Stocks", "stocks"), a("/filings", "Filings +", "filings"))
+                                              a("/stocks", "Stocks", "stocks"), a("/charts", "Charts", "charts")
+                                              + a("/filings", "Filings +", "filings"))
 
 
 def handles(pathname):
-    return pathname in ("/stocks", "/s", "/approve", "/filings")
+    return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts")
 
 
 def filings_page(cfg):
@@ -614,7 +616,7 @@ def page(cfg):
     return out
 
 
-def stock_page(sym):
+def stock_page(sym, rng=""):
     if not re.match(r"^[A-Za-z.\-]{1,6}$", sym or ""):
         return ['<a class="back" href="/stocks">&larr; back</a><p>bad symbol</p>']
     sym = sym.upper()
@@ -635,8 +637,9 @@ def stock_page(sym):
             "<h1>%s</h1>" % e(sym),
             "<div class='sub'>%s</div>" % e(("$%.2f now" % px[sym]) if sym in px else "no price yet"),
             "<div class='note'>%s</div>" % e(" | ".join(held) if held else "not held"),
-            "<iframe class='chart' src='%s'></iframe>" % e(src),
-            '<a class="ext" href="https://finance.yahoo.com/quote/%s">open on Yahoo Finance &rarr;</a>' % e(sym),
+            "".join(charts.stock_chart(sym, rng)),
+            '<a class="ext" href="%s">TradingView &rarr;</a> &nbsp; ' % e(src.replace("widgetembed/", "chart/")),
+            '<a class="ext" href="https://finance.yahoo.com/quote/%s">Yahoo Finance &rarr;</a>' % e(sym),
             "<h2>Orders</h2>", table(["time", "sleeve", "side", "amount", "status"], rows, "no orders for this stock")]
 
 
@@ -670,13 +673,16 @@ def render(pathname, query, css):
     if pathname == "/filings":
         body = filings_page(cfg)
         refresh = "<meta http-equiv='refresh' content='60'>"
+    elif pathname == "/charts":
+        body = charts.charts_page(cfg, tabs)
+        refresh = "<meta http-equiv='refresh' content='300'>"
     elif pathname == "/s":
-        body = stock_page((query.get("sym") or [""])[0])
+        body = stock_page((query.get("sym") or [""])[0], (query.get("r") or [""])[0])
         refresh = ""
     else:
         body = page(cfg)
         refresh = "<meta http-equiv='refresh' content='30'>"
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>" + refresh +
-            "<title>stocks</title><style>" + css + EXTRA + "</style></head><body>" + "".join(body) +
-            SCRIPT + "</body></html>")
+            "<title>stocks</title><style>" + css + EXTRA + charts.CSS + "</style></head><body>" + "".join(body) +
+            SCRIPT + charts.JS + "</body></html>")

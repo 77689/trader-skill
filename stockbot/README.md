@@ -157,3 +157,15 @@ All 27 neighbouring settings (SMA 150/200/250, band 1-3%, vol cap 20-30%)
 landed between 13% and 24% a year, so the result isn't one lucky setting.
 Out of sample (2013-2026) it made 31.9% a year vs 39.4% for holding TQQQ, with
 a -53% worst drop instead of -82%.
+
+## Charts tab
+
+`charts.py` draws terminal-style charts from the bot's own daily bars (no
+outside chart service): candles, 50/200-day averages (and the 44 EMA on Swing
+holdings), volume vs its 50-day average, your cost / stop / target lines and
+buy / sell arrows. Touch a chart for exact open / high / low / close / volume.
+Each chart has a stat strip with the evidence-backed numbers: trend vs the
+200-day, 12-1 month momentum, distance from the 52-week high, 20-day
+volatility and relative volume. The top chart is the bot vs SPY vs QQQ with a
+drawdown strip. Tapping a stock opens a big chart with 3M / 6M / 1Y / 2Y.
+Bars refresh every 30 minutes in the background.
