@@ -193,3 +193,11 @@ far-away average or target can't flatten them: an off-chart level keeps its tag
 at the edge with a small arrow. Each history point also stores the exact
 dollars (`g`, `sg`, `qg`), and thinning old points never drops a day's last
 point, so daily and monthly numbers stay exact as the file grows.
+
+## Daily good / bad notification
+
+Once per trading day after the 4 PM close the bot sends a phone notification:
+"the bot is doing good" if it made money that day, "the bot is doing bad" if it
+lost, with the day's dollars, the same money in SPY, and the total since the
+start. `python stockbot.py report` sends the latest one right away. Turn it off
+with `"daily_report": false` in config.json.

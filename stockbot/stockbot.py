@@ -105,6 +105,7 @@ DEFAULTS = {
     "congress_days_back": 14,
     "cycle_seconds": 300,
     "live_seconds": 15,            # live prices for the dashboard every 15 s (Alpaca data, free IEX feed)
+    "daily_report": True,          # after each close: a phone notification, "the bot is doing good / bad"
     "refresh_days": 7,
     "sec_user_agent": "",
 }
@@ -1306,6 +1307,58 @@ def notify(title, text):
             pass
 
 
+def _dollars(p):
+    """(money in, bot $, SPY $) for one history point."""
+    cin = float(p.get("in") or 0)
+    g = p["g"] if p.get("g") is not None else float(p.get("bot") or 0) / 100 * cin
+    sg = p["sg"] if p.get("sg") is not None else float(p.get("spy") or 0) / 100 * cin
+    return cin, g, sg
+
+
+def report_text(day=None):
+    """(title, text) for the daily notification, from history.json. None if no points that day."""
+    h = [p for p in load("history.json", []) if float(p.get("in") or 0) > 0 and p.get("t")]
+    day = day or ny_now().strftime("%Y-%m-%d")
+    todays = [p for p in h if p["t"][:10] == day]
+    if not todays:
+        return None
+    before = [p for p in h if p["t"][:10] < day]
+    cin, g, sg = _dollars(todays[-1])
+    pin, pg, psg = _dollars(before[-1]) if before else (0.0, 0.0, 0.0)
+    base = (pin + pg) if pin > 0 else cin
+    d, ds = g - pg, sg - psg
+    dp, dsp = d / base * 100, ds / base * 100
+    tp = g / cin * 100
+    title = "the bot is doing good" if d >= 0 else "the bot is doing bad"
+    text = ("today %s$%.2f (%+.2f%%), same money in SPY %s$%.2f (%+.2f%%). total %s$%.2f (%+.2f%%) on $%s"
+            % ("+" if d >= 0 else "-", abs(d), dp, "+" if ds >= 0 else "-", abs(ds), dsp,
+               "+" if g >= 0 else "-", abs(g), tp, format(cin, ",.0f")))
+    if d >= 0 and d < ds:
+        text += ". made money but SPY did better"
+    elif d < 0 and d > ds:
+        text += ". lost less than SPY"
+    return title, text
+
+
+def daily_report(cfg, state):
+    """Once per trading day, after the close: good or bad, with the numbers."""
+    if not cfg.get("daily_report", True) or state.get("session") not in ("post", "overnight", "closed"):
+        return
+    day = ny_now().strftime("%Y-%m-%d")
+    if state.get("report_day") == day or ny_now().hour < 16:
+        return
+    r = report_text(day)
+    state["report_day"] = day
+    if r:
+        log("daily report:", r[0], "|", r[1])
+        if shutil.which("termux-notification"):
+            try:
+                subprocess.run(["termux-notification", "--id", "stockbot-daily", "--title", r[0],
+                                "--content", r[1]], timeout=10)
+            except Exception:
+                pass
+
+
 def alerts(cfg):
     """Price alerts on what you hold: a stop under cost, a target over it, big daily moves, the bell."""
     d = path("alerts")
@@ -1599,7 +1652,8 @@ def cycle(cfg, alpaca):
             record_history()
         except Exception as ex:
             log("history error:", ex)
-    for name, fn in (("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg))):
+    for name, fn in (("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg)),
+                     ("report", lambda: daily_report(cfg, state))):
         try:
             fn()
         except Exception as ex:
@@ -1695,6 +1749,15 @@ def main():
     alpaca = Alpaca()
     if not cfg.get("sec_user_agent"):
         raise SystemExit("set sec_user_agent in %s (name and email, SEC asks for it)" % path("config.json"))
+    if cmd == "report":                 # send today's (or the last trading day's) notification now
+        h = load("history.json", [])
+        r = report_text(h[-1]["t"][:10]) if h else None
+        if not r:
+            print("no history yet")
+            return
+        print(r[0] + "\n" + r[1])
+        notify(*r)
+        return
     if cmd == "status":
         print(json.dumps({"status": load("status.json", {}), "account": load("account.json", {}),
                           "orders": len(ledger())}, indent=1))
