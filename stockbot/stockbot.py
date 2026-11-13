@@ -74,6 +74,12 @@ DEFAULTS = {
     "momentum_top": 3,
     "trend_assets": ["SPY", "EFA", "IEF", "GLD"],
     "cash_etf": "BIL",             # where trend parks money when an asset is below its average
+    "tqqq_budget": 1000,           # 3x Nasdaq sleeve: small on purpose, never topped up
+    "tqqq_sma_days": 200,          # QQQ trend line
+    "tqqq_band_pct": 2,            # in above SMA x 1.02, out below SMA x 0.98
+    "tqqq_vol_3x": 25,             # QQQ 20-day volatility under this: TQQQ (3x)
+    "tqqq_vol_2x": 35,             # under this: QLD (2x); above: T-bills
+    "tqqq_min_hold_days": 5,       # no switching back and forth within 5 trading days (exits to BIL always allowed)
     "breakout_budget": 2500,       # 52-week-high breakouts, confirmed
     "trade_risk_pct": 1.0,         # swing/breakout: lose at most this % of the sleeve per trade
     "trade_max_position_pct": 25,  # ... and never more than this % of the sleeve in one stock
@@ -103,8 +109,8 @@ DEFAULTS = {
 }
 
 
-SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend")
-MONTHLY = ("momentum", "trend")     # rebalance once a month, no stop-losses
+SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq")
+MONTHLY = ("momentum", "trend", "tqqq")   # ETF sleeves on a schedule: no stop-losses, no news gate
 CORE = ("berkshire", "screener")
 
 
@@ -794,18 +800,63 @@ def trend_weights(cfg, bars, month):
     return w, rows
 
 
+def tqqq_weights(cfg, bars, state):
+    """3x Nasdaq only in calm uptrends (Gayed & Bilello; Avellaneda & Zhang: 3x loses about
+    3x the variance each year, so leverage only pays when volatility is low).
+    Trend: QQQ vs its 200-day average with a 2% band. Volatility: QQQ 20-day, yearly."""
+    import statistics
+    rows = signals.completed(bars.get("QQQ", []), today())
+    n = cfg["tqqq_sma_days"]
+    if len(rows) < n + 21:
+        return {}, {}
+    closes = [r[4] for r in rows]
+    sma = sum(closes[-n:]) / n
+    c = closes[-1]
+    band = cfg["tqqq_band_pct"] / 100.0
+    was_in = state.get("tqqq_in", c > sma)
+    trend_in = (c > sma * (1 + band)) if not was_in else not (c < sma * (1 - band))
+    state["tqqq_in"] = trend_in
+    lr = [math.log(closes[i] / closes[i - 1]) for i in range(len(closes) - 20, len(closes))]
+    vol = statistics.stdev(lr) * math.sqrt(252) * 100
+    if trend_in and vol < cfg["tqqq_vol_3x"]:
+        tgt = "TQQQ"
+    elif trend_in and vol < cfg["tqqq_vol_2x"]:
+        tgt = "QLD"
+    else:
+        tgt = cfg["cash_etf"]
+    cur = state.get("tqqq_target")
+    since = state.get("tqqq_switched", "")
+    held_days = sum(1 for r in rows if r[0] >= since) if since else 999
+    note = ""
+    if cur and tgt != cur and tgt != cfg["cash_etf"] and held_days < cfg["tqqq_min_hold_days"]:
+        note = "wanted %s, but %s was picked %d trading days ago (min %d)" % (
+            tgt, cur, held_days, cfg["tqqq_min_hold_days"])
+        tgt = cur
+    if tgt != cur:
+        state["tqqq_target"], state["tqqq_switched"] = tgt, today()
+    plan = {"qqq": round(c, 2), "sma200": round(sma, 2), "vs_sma_pct": round((c / sma - 1) * 100, 2),
+            "trend": "up" if trend_in else "down", "vol20": round(vol, 1), "hold": tgt, "note": note,
+            "rule": "TQQQ if trend up and vol < %d%%, QLD if vol < %d%%, else %s"
+                    % (cfg["tqqq_vol_3x"], cfg["tqqq_vol_2x"], cfg["cash_etf"])}
+    return {tgt: 1.0}, plan
+
+
 def monthly_sleeve(name, cfg, alpaca, state, is_open):
     budget = cfg[name + "_budget"]
     d = write_sleeve_config(name, cfg, budget, cash_buffer_pct=2, max_position_pct=100)
-    month = today()[:7]
+    month = today() if name == "tqqq" else today()[:7]      # tqqq checks every trading day
     if not is_open or state.get(name + "_month") == month:
         return
-    syms = cfg["momentum_universe"] if name == "momentum" else cfg["trend_assets"] + [cfg["cash_etf"]]
+    syms = {"momentum": cfg["momentum_universe"], "trend": cfg["trend_assets"] + [cfg["cash_etf"]],
+            "tqqq": ["QQQ", "TQQQ", "QLD", cfg["cash_etf"]]}[name]
     b = signals.bars(syms, path("bars_adj"), today(), adjusted=True)
-    if len([s for s in syms if b.get(s)]) < len(syms) * 0.7:
+    if len([s for s in syms if b.get(s)]) < len(syms) * 0.7 or (name == "tqqq" and not b.get("QQQ")):
         log(name, "price history missing, will retry")
         return
-    w, plan = (momentum_weights if name == "momentum" else trend_weights)(cfg, b, month)
+    if name == "tqqq":
+        w, plan = tqqq_weights(cfg, b, state)
+    else:
+        w, plan = (momentum_weights if name == "momentum" else trend_weights)(cfg, b, month)
     save(name + "_plan.json", {"time": stamp(), "month": month, "weights": w, "rows": plan})
     if not w:
         log(name, "no signal, will retry")
@@ -852,6 +903,10 @@ def momentum(cfg, alpaca, state, is_open):
 
 def trend(cfg, alpaca, state, is_open):
     monthly_sleeve("trend", cfg, alpaca, state, is_open)
+
+
+def tqqq(cfg, alpaca, state, is_open):
+    monthly_sleeve("tqqq", cfg, alpaca, state, is_open)
 
 
 # ---------- swing and breakout: daily-bar trades with stops ----------
@@ -1522,7 +1577,7 @@ def cycle(cfg, alpaca):
         log("stops", "ERROR", ex)
         status["errors"].append("stops: %s" % str(ex)[:200])
     for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout),
-                     ("momentum", momentum), ("trend", trend)):
+                     ("momentum", momentum), ("trend", trend), ("tqqq", tqqq)):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:

@@ -133,3 +133,27 @@ using Alpaca's latest-trade data (IEX feed, overnight feed at night). Off-hours
 stop sales are limit orders 2% under the last trade (`after_hours_limit_pct`),
 since only limit orders are allowed then. Targets and new buys still wait for
 the regular session. `stops_after_hours: false` turns it off.
+
+## TQQQ sleeve ($1,000)
+
+Every market day: TQQQ (3x Nasdaq-100) only when QQQ is in an uptrend (above its
+200-day average; in above +2%, out below -2%) and calm (20-day volatility under
+25%); QLD (2x) when volatility is 25-35%; otherwise BIL. No switching back
+within 5 trading days, except out to BIL. No stop-loss and never topped up: it
+is sized so losing it all costs about 6% of the bot.
+
+Why: a 3x fund loses about 3x the index's variance each year (Avellaneda &
+Zhang 2010), so leverage only pays in calm uptrends. Backtest with realistic
+costs (0.78% fee + 2x the T-bill rate + 0.4% financing), QQQ data 1999-2026:
+
+| | per year | worst drop | 2000 | 2008 | 2022 |
+| --- | --- | --- | --- | --- | --- |
+| QQQ hold | 9.8% | -83% | -36% | -42% | -33% |
+| TQQQ hold | -0.9% | -100% | -92% | -90% | -79% |
+| this rule | 16.8% | -64% | -25% | -43% | -31% |
+| same, no volatility gate | 11.1% | -91% | -70% | -45% | -31% |
+
+All 27 neighbouring settings (SMA 150/200/250, band 1-3%, vol cap 20-30%)
+landed between 13% and 24% a year, so the result isn't one lucky setting.
+Out of sample (2013-2026) it made 31.9% a year vs 39.4% for holding TQQQ, with
+a -53% worst drop instead of -82%.

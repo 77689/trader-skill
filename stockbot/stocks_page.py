@@ -467,6 +467,21 @@ def page(cfg):
     out.append("<h2>Trend signals (%s)</h2>" % e(tp.get("month", "next market day")))
     out.append(table(["asset", "month-end", "10-mo avg", "vs avg", ""], rows, "signals appear on its first market day"))
     out.append('<div class="note muted">both rebalance on the first market day of each month.</div>')
+    qp = stockbot.load("tqqq_plan.json", {})
+    x = qp.get("rows") or {}
+    out.append("<h2>TQQQ rocket (%s)</h2>" % e(qp.get("month", "next market day")))
+    if x:
+        col = "ok" if x["hold"] == "TQQQ" else "bad" if x["hold"] not in ("TQQQ", "QLD") else ""
+        out.append(table(["QQQ", "200-day avg", "vs avg", "trend", "volatility (20d)", "holding"],
+                         [["%.2f" % x["qqq"], "%.2f" % x["sma200"], pct(x["vs_sma_pct"]),
+                           '<span class="%s">%s</span>' % ("ok" if x["trend"] == "up" else "bad", x["trend"]),
+                           "%.1f%%" % x["vol20"], '<span class="%s">%s</span>%s' % (col, sym_link(x["hold"]),
+                           (' <span class="why">%s</span>' % e(x["note"])) if x.get("note") else "")]]))
+        out.append('<div class="note muted">%s. Checked every market day. 3x funds lose about 3x the '
+                   'variance each year, so leverage is only held when the Nasdaq is calm and trending up. '
+                   'No stop-loss: the rule is the exit. Never topped up.</div>' % e(x["rule"]))
+    else:
+        out.append(table(["holding"], [], "first check on the next market day"))
 
     # berkshire targets
     rows = []
