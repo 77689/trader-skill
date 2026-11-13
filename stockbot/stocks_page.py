@@ -470,7 +470,7 @@ def page(cfg):
     qp = stockbot.load("tqqq_plan.json", {})
     x = qp.get("rows") or {}
     out.append("<h2>TQQQ rocket (%s)</h2>" % e(qp.get("month", "next market day")))
-    if x:
+    if x.get("qqq"):
         col = "ok" if x["hold"] == "TQQQ" else "bad" if x["hold"] not in ("TQQQ", "QLD") else ""
         out.append(table(["QQQ", "200-day avg", "vs avg", "trend", "volatility (20d)", "holding"],
                          [["%.2f" % x["qqq"], "%.2f" % x["sma200"], pct(x["vs_sma_pct"]),
