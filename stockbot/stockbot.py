@@ -326,7 +326,7 @@ def bench_prices(sym):
         closes = d["indicators"]["quote"][0]["close"]
         for ts, c in zip(d.get("timestamp") or [], closes):
             if c:
-                t = datetime.datetime.utcfromtimestamp(ts + off)
+                t = datetime.datetime.fromtimestamp(ts + off, datetime.timezone.utc).replace(tzinfo=None)
                 out.append((t.strftime("%Y-%m-%d") + " 16:00" if iv == "1d" else t.strftime("%Y-%m-%d %H:%M"), c))
     out.sort()
     return out
@@ -617,7 +617,7 @@ def off_hours_prices(alpaca, symbols, session):
     for s, t in (d.get("trades") or {}).items():
         try:
             ts = datetime.datetime.strptime(t["t"][:19], "%Y-%m-%dT%H:%M:%S")
-            if (datetime.datetime.utcnow() - ts).total_seconds() < 3 * 3600 and t.get("p"):   # fresh only
+            if (datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - ts).total_seconds() < 3 * 3600 and t.get("p"):   # fresh only
                 out[s] = float(t["p"])
         except Exception:
             pass

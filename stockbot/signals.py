@@ -41,7 +41,7 @@ def fetch(sym, adjusted=False):
         if adj and adj[i]:                       # dividends included (matters for bond/T-bill ETFs)
             f = adj[i] / c
             o, h, l, c = o * f, h * f, l * f, adj[i]
-        day = datetime.datetime.utcfromtimestamp(ts + (d["meta"].get("gmtoffset") or 0)).strftime("%Y-%m-%d")
+        day = datetime.datetime.fromtimestamp(ts + (d["meta"].get("gmtoffset") or 0), datetime.timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d")
         rows.append([day, o, h, l, c, v])
     return rows
 
