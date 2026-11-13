@@ -17,9 +17,9 @@ import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
 import charts  # noqa: E402
 
 EXTRA = """
-.tabs { display:flex; gap:8px; margin:2px 0 12px; }
-.tabs a { padding:6px 14px; border-radius:8px; background:#161b22; border:1px solid #30363d;
-          color:#8b949e; text-decoration:none; font-size:14px; }
+.tabs { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 12px; }
+.tabs a { padding:6px 10px; border-radius:8px; background:#161b22; border:1px solid #30363d;
+          color:#8b949e; text-decoration:none; font-size:14px; white-space:nowrap; }
 .tabs a.on { color:#e6e6e6; border-color:#58a6ff; }
 .why { color:#8b949e; font-size:12px; white-space:normal; min-width:180px; }
 .lg { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
@@ -280,7 +280,7 @@ def chart(hist):
         return "%.1f,%.1f" % (P + i * (W - 2 * P) / (n - 1), P + (hi - v) * (H - 2 * P) / (hi - lo))
     zero = P + hi * (H - 2 * P) / (hi - lo)
     lines = []
-    for k, col, wdt in (("spy", "#8b949e", 1.5), ("qqq", "#d2a8ff", 1.5), ("bot", "#58a6ff", 2.5)):
+    for k, col, wdt in (("spy", charts.SPYC, 1.5), ("qqq", charts.QQQC, 1.5), ("bot", charts.BOT, 2.5)):
         lines.append('<polyline fill="none" stroke="%s" stroke-width="%s" stroke-linejoin="round" '
                      'vector-effect="non-scaling-stroke" points="%s"/>'
                      % (col, wdt, " ".join(xy(i, v) for i, v in enumerate(ser[k]))))
@@ -296,9 +296,10 @@ def chart(hist):
            '<line x1="0" x2="%d" y1="%.1f" y2="%.1f" stroke="#30363d" stroke-dasharray="4 4" '
            'vector-effect="non-scaling-stroke"/>%s</svg>' % (W, H, "".join(seps), W, zero, zero, "".join(lines)))
     last = hist[-1]
-    leg = ('<div class="leg"><span><i style="background:#58a6ff"></i>bot %s</span>'
-           '<span><i style="background:#8b949e"></i>SPY %s</span><span><i style="background:#d2a8ff"></i>QQQ %s</span></div>'
-           % (pct(num(last["bot"])), pct(num(last["spy"])), pct(num(last["qqq"]))))
+    leg = ('<div class="leg"><span><i style="background:%s"></i>bot %s</span>'
+           '<span><i style="background:%s"></i>SPY %s</span><span><i style="background:%s"></i>QQQ %s</span></div>'
+           % (charts.BOT, pct(num(last["bot"])), charts.SPYC, pct(num(last["spy"])), charts.QQQC,
+              pct(num(last["qqq"]))))
     axis = ('<div class="ax"><span>%s</span><span>%+.1f%% to %+.1f%%</span><span>%s</span></div>'
             % (e(hist[0]["t"][5:16]), lo, hi, e(last["t"][5:16])))
     return '<div class="wrap chw">%s%s%s</div>' % (leg, svg, axis)

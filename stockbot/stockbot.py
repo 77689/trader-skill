@@ -1520,7 +1520,8 @@ def record_history():
         pt["qqq"] += qg
     if pt["in"] <= 0:
         return
-    for k in ("bot", "spy", "qqq"):
+    for k, dk in (("bot", "g"), ("spy", "sg"), ("qqq", "qg")):
+        pt[dk] = round(pt[k], 2)       # the dollars themselves (drawdown and returns on the Charts tab)
         pt[k] = round(pt[k] / pt["in"] * 100, 3)
     pt["in"] = round(pt["in"], 2)
     pt["eq"] = load("account.json", {}).get("equity")
@@ -1529,9 +1530,11 @@ def record_history():
         h[-1] = pt
     else:
         h.append(pt)
-    if len(h) > 4000:                  # thin out the oldest half
+    if len(h) > 4000:                  # thin out the oldest half, but never drop a day's last point
         half = len(h) // 2
-        h = h[:half:3] + h[half:]
+        old = h[:half]
+        h = [p for i, p in enumerate(old)
+             if i % 3 == 0 or i + 1 == len(old) or old[i + 1]["t"][:10] != p["t"][:10]] + h[half:]
     save("history.json", h)
 
 

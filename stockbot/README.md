@@ -166,6 +166,30 @@ holdings), volume vs its 50-day average, your cost / stop / target lines and
 buy / sell arrows. Touch a chart for exact open / high / low / close / volume.
 Each chart has a stat strip with the evidence-backed numbers: trend vs the
 200-day, 12-1 month momentum, distance from the 52-week high, 20-day
-volatility and relative volume. The top chart is the bot vs SPY vs QQQ with a
-drawdown strip. Tapping a stock opens a big chart with 3M / 6M / 1Y / 2Y.
-Bars refresh every 30 minutes in the background.
+volatility and relative volume. Tapping a stock opens a big chart with
+1M / 3M / 6M / 1Y / 2Y. Bars refresh every 30 minutes in the background.
+
+Above the candles there are four panels built from `history.json` (one point
+every 5 minutes while the market is open):
+
+- **Bot vs SPY vs QQQ**: % made on the money in, against the same dollars put
+  into each index at the same minutes.
+- **Drawdown**: how far the bot, SPY and QQQ are below their own best point so
+  far, with now / worst / when under the chart. It chains each step's dollar
+  change over what the holdings were worth at the start of that step, so
+  putting more money in can't fake a drop or hide one.
+- **Returns**: one row per month with a green / red box for the bot next to
+  SPY and QQQ, and a Monday-to-Friday calendar of the current month with the
+  dollars made each day. Tap a day for the full numbers. The % is the dollars
+  made over the money that was in, so since-the-start it is the same number as
+  the top of the Stocks tab.
+- **Where the money is**: ranked bars of the dollars in each strategy and the
+  eight biggest single positions.
+
+Buy / sell arrows sit on the day of the fill with a white tick at the exact
+price you got, and touching that candle shows shares, price, strategy and how
+far the price has moved since. The price scale follows the candles, so a
+far-away average or target can't flatten them: an off-chart level keeps its tag
+at the edge with a small arrow. Each history point also stores the exact
+dollars (`g`, `sg`, `qg`), and thinning old points never drops a day's last
+point, so daily and monthly numbers stay exact as the file grows.
