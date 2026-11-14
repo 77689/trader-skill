@@ -19,6 +19,8 @@ import charts  # noqa: E402
 import fastnews  # noqa: E402
 
 EXTRA = """
+.nwrap td:last-child { white-space:normal; line-height:1.35; }
+.nwrap td { vertical-align:top; }
 .tabs { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 12px; }
 .tabs a { padding:6px 10px; border-radius:8px; background:#161b22; border:1px solid #30363d;
           color:#8b949e; text-decoration:none; font-size:14px; white-space:nowrap; }
@@ -85,12 +87,12 @@ def pct(x):
     return '<span class="%s">%+.1f%%</span>' % (cls, x)
 
 
-def table(headers, rows, empty="nothing yet"):
+def table(headers, rows, empty="nothing yet", cls=""):
     if not rows:
         return '<div class="wrap"><div class="empty">%s</div></div>' % empty
     h = "".join("<th>%s</th>" % x for x in headers)
     body = "".join("<tr>" + "".join("<td>%s</td>" % c for c in r) + "</tr>" for r in rows)
-    return '<div class="wrap"><table><tr>%s</tr>%s</table></div>' % (h, body)
+    return '<div class="wrap%s"><table><tr>%s</tr>%s</table></div>' % (" " + cls if cls else "", h, body)
 
 
 SHARED = False                     # True while serving a request that came through the share link
@@ -142,25 +144,35 @@ def ny_time(iso):
         return str(iso or "")[5:16].replace("T", " ")
 
 
-def fast_line(fast):
-    """One line under the news heading: is the one-minute check alive, and how fresh is it."""
-    if not fast.get("ts"):
-        return ('<div class="note muted">fast news check: not running yet (it starts with the bot, '
-                'once a minute on weekdays 6 AM to 10 PM)</div>')
+def fast_line(fast, key, name):
+    """One line under a news heading: is that source's one-minute check alive, and how fresh is it."""
+    x = fast.get(key)
+    if not fast.get("ts") or not x:
+        return ('<div class="note muted">%s: fast check not running yet (it starts with the bot, once a minute '
+                'on weekdays 6 AM to 10 PM)</div>' % name)
 
     def ago(sec):
         return "%d s" % sec if sec < 120 else "%d min" % (sec / 60) if sec < 7200 else "%.0f h" % (sec / 3600)
-    parts = ["checked %s ago" % ago(max(0, time.time() - fast["ts"]))]
-    for key, name in (("sec", "SEC feed"), ("alpaca", "Alpaca news")):
-        x = fast.get(key)
-        if not x:
-            continue
-        if x.get("ok"):
-            a = fastnews.age_seconds(x.get("newest"))
-            parts.append('<span class="ok">%s ok</span>%s' % (name, "" if a is None else " (newest %s old)" % ago(max(0, a))))
-        else:
-            parts.append('<span class="bad">%s failed: %s</span>' % (name, e(str(x.get("error", ""))[:80])))
-    return '<div class="note muted">fast news check: %s</div>' % " &middot; ".join(parts)
+    checked = "checked %s ago" % ago(max(0, time.time() - fast["ts"]))
+    if not x.get("ok"):
+        return ('<div class="note muted">%s &middot; <span class="bad">%s failed: %s</span></div>'
+                % (checked, name, e(str(x.get("error", ""))[:80])))
+    a = fastnews.age_seconds(x.get("newest"))
+    last = "" if a is None else " &middot; the last %s came out %s ago" % (
+        "8-K from any company" if key == "sec" else "headline on your stocks", ago(max(0, a)))
+    return '<div class="note muted"><span class="ok">%s ok</span> &middot; %s%s</div>' % (name, checked, last)
+
+
+def news_rows(items, n, source=False):
+    rows = []
+    for it in items[:n]:
+        tags = " ".join('<span class="bad">%s</span>' % e(t) for t in it.get("tags", []))
+        title = '<a class="coin" href="%s">%s</a>' % (e(it.get("link") or "#"), e(it.get("title", "")[:140]))
+        if source:
+            title += ' <span class="muted">%s</span>' % e(str(it.get("source", ""))[:14])
+        rows.append([e(ny_time(it.get("time"))), e(", ".join(it.get("touches", []))[:12]),
+                     title + (" " + tags if tags else "")])
+    return rows
 
 
 def filings_page(cfg):
@@ -601,15 +613,19 @@ def page(cfg):
         if key not in have:
             have.add(key)
             nw.append(n)
-    rows = []
-    for n in nw[:15]:
-        tags = " ".join('<span class="bad">%s</span>' % e(t) for t in n.get("tags", []))
-        title = '<a class="coin" href="%s">%s</a>' % (e(n.get("link") or "#"), e(n.get("title", "")[:70]))
-        rows.append([e(ny_time(n.get("time"))), e(", ".join(n.get("touches", []))[:12]),
-                     title + (" " + tags if tags else "")])
-    out.append("<h2>News on your stocks</h2>")
-    out.append(fast_line(fast))
-    out.append(table(["time (NY)", "stock", "headline"], rows, "nothing yet"))
+    sec = [n for n in nw if n.get("kind") == "filing"]
+    alp = [n for n in nw if str(n.get("id", "")).startswith("alp:")]
+    other = [n for n in nw if n.get("kind") != "filing" and not str(n.get("id", "")).startswith("alp:")]
+    out.append("<h2>SEC filings on your stocks</h2>")
+    out.append(fast_line(fast, "sec", "SEC feed"))
+    out.append(table(["time (NY)", "stock", "filing"], news_rows(sec, 10), "no 8-K filings on your stocks lately", "nwrap"))
+    out.append("<h2>Alpaca news on your stocks</h2>")
+    out.append(fast_line(fast, "alpaca", "Alpaca news"))
+    out.append(table(["time (NY)", "stock", "headline"], news_rows(alp, 15, source=True), "nothing yet", "nwrap"))
+    if other:
+        out.append("<h2>Yahoo headlines</h2>")
+        out.append('<div class="note muted">the older check, every 15 minutes</div>')
+        out.append(table(["time (NY)", "stock", "headline"], news_rows(other, 6), "nothing yet", "nwrap"))
     gate = stockbot.load("news_gate.json", {})
     if gate:
         g = sorted(gate.items(), key=lambda kv: -kv[1].get("checked", 0))[:12]
