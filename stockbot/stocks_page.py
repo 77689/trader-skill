@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
 import charts  # noqa: E402
 import fastnews  # noqa: E402
+import golive  # noqa: E402
 
 EXTRA = """
 .nwrap td:last-child { white-space:normal; line-height:1.35; }
@@ -463,6 +464,10 @@ def page(cfg):
     out.append("</div>")
     out.append('<div class="note muted">vs = same dollars put into SPY / QQQ at the same minute. '
                'Means little until there are weeks of data.</div>')
+    try:
+        out.append(golive.html(e))
+    except Exception as ex:                    # a checklist problem must never take the page down
+        out.append('<div class="note muted">go-live checklist unavailable: %s</div>' % e(str(ex)[:120]))
 
     out.append("<h2>Holdings</h2>")
     out.append(table(["sleeve", "stock", "shares", "avg", "now", "value", "P&L"], held_rows, "no holdings yet"))
@@ -748,5 +753,5 @@ def render(pathname, query, css):
         refresh = "<meta http-equiv='refresh' content='30'>"
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>" + refresh +
-            "<title>stocks</title><style>" + css + EXTRA + charts.CSS + "</style></head><body>" + "".join(body) +
+            "<title>stocks</title><style>" + css + EXTRA + charts.CSS + golive.CSS + "</style></head><body>" + "".join(body) +
             SCRIPT + charts.JS + "</body></html>")

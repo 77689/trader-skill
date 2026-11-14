@@ -223,3 +223,20 @@ trade. It runs once a minute on weekdays 6 AM to 10 PM New York time and every
 10 minutes otherwise; `"news_seconds": 0` in config.json turns it off.
 `python stockbot.py newstest` runs one pass and prints what each source
 returned.
+
+## Go-live checklist
+
+`golive.py` puts a box on the Stocks tab with the rules the bot has to meet
+before any real money, set on Nov 13 2026 before there were results to fit
+them to:
+
+- 6 months (182 days) on paper
+- lived through a real market drop (SPY down 5% or more from a high)
+- no more than 3 points behind SPY overall
+- the bot's worst drop never reached 15%
+- its worst drop is smaller than SPY's (waits until SPY has dipped at least 2%)
+- running all session (morning to close, no hole over 30 minutes) on 95% or
+  more of trading days
+
+Each line turns green by itself as it's met. It only measures: the bot still
+refuses non-paper accounts, and going live is a code change made on purpose.
