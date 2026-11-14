@@ -30,7 +30,7 @@ copy() {  # file, destination (inside the work folder)
 pass() {
   setup || return 1
   cd "$WORK" || return 1
-  for f in ledger pending account status state congress news tax alerts_log decisions filings spy qqq qual history stops stopouts swing_signals breakout_signals momentum_plan trend_plan screener_picks news_gate tqqq_plan; do
+  for f in ledger pending account status state congress news tax alerts_log decisions filings spy qqq qual history stops stopouts swing_signals breakout_signals momentum_plan trend_plan screener_picks news_gate tqqq_plan fast_news; do
     copy "$DATA/$f.json" "$f.json"
   done
   for s in berkshire screener swing breakout momentum trend tqqq; do

@@ -4,6 +4,7 @@ dashboard.py imports this and hands it the page CSS. Nothing here writes
 anything: it only reads the files stockbot.py keeps in ~/stockbot-data.
 """
 
+import datetime
 import html
 import json
 import os
@@ -15,6 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
 import charts  # noqa: E402
+import fastnews  # noqa: E402
 
 EXTRA = """
 .tabs { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 12px; }
@@ -126,6 +128,39 @@ def tabs(active):
 
 def handles(pathname):
     return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts", "/live")
+
+
+def ny_time(iso):
+    """'2026-11-13T21:30:00+00:00' -> '11-13 16:30' New York time."""
+    try:
+        from zoneinfo import ZoneInfo
+        d = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=datetime.timezone.utc)
+        return d.astimezone(ZoneInfo("America/New_York")).strftime("%m-%d %H:%M")
+    except Exception:
+        return str(iso or "")[5:16].replace("T", " ")
+
+
+def fast_line(fast):
+    """One line under the news heading: is the one-minute check alive, and how fresh is it."""
+    if not fast.get("ts"):
+        return ('<div class="note muted">fast news check: not running yet (it starts with the bot, '
+                'once a minute on weekdays 6 AM to 10 PM)</div>')
+
+    def ago(sec):
+        return "%d s" % sec if sec < 120 else "%d min" % (sec / 60) if sec < 7200 else "%.0f h" % (sec / 3600)
+    parts = ["checked %s ago" % ago(max(0, time.time() - fast["ts"]))]
+    for key, name in (("sec", "SEC feed"), ("alpaca", "Alpaca news")):
+        x = fast.get(key)
+        if not x:
+            continue
+        if x.get("ok"):
+            a = fastnews.age_seconds(x.get("newest"))
+            parts.append('<span class="ok">%s ok</span>%s' % (name, "" if a is None else " (newest %s old)" % ago(max(0, a))))
+        else:
+            parts.append('<span class="bad">%s failed: %s</span>' % (name, e(str(x.get("error", ""))[:80])))
+    return '<div class="note muted">fast news check: %s</div>' % " &middot; ".join(parts)
 
 
 def filings_page(cfg):
@@ -558,15 +593,23 @@ def page(cfg):
                    'Links are in congress.json.</div>' % unread)
 
     # news
-    nw = stockbot.load("news.json", {}).get("items", [])
+    fast = stockbot.load("fast_news.json", {})
+    nw, have = [], set()
+    for n in sorted(fast.get("items", []) + stockbot.load("news.json", {}).get("items", []),
+                    key=lambda i: str(i.get("time") or ""), reverse=True):
+        key = n.get("id") or n.get("link") or n.get("title")       # the same filing can come from both checks
+        if key not in have:
+            have.add(key)
+            nw.append(n)
     rows = []
-    for n in nw[:12]:
+    for n in nw[:15]:
         tags = " ".join('<span class="bad">%s</span>' % e(t) for t in n.get("tags", []))
-        title = '<a class="coin" href="%s">%s</a>' % (e(n.get("link", "#")), e(n.get("title", "")[:70]))
-        rows.append([e(str(n.get("time", ""))[5:16].replace("T", " ")), e(", ".join(n.get("touches", []))[:12]),
+        title = '<a class="coin" href="%s">%s</a>' % (e(n.get("link") or "#"), e(n.get("title", "")[:70]))
+        rows.append([e(ny_time(n.get("time"))), e(", ".join(n.get("touches", []))[:12]),
                      title + (" " + tags if tags else "")])
     out.append("<h2>News on your stocks</h2>")
-    out.append(table(["time (UTC)", "stock", "headline"], rows, "nothing yet"))
+    out.append(fast_line(fast))
+    out.append(table(["time (NY)", "stock", "headline"], rows, "nothing yet"))
     gate = stockbot.load("news_gate.json", {})
     if gate:
         g = sorted(gate.items(), key=lambda kv: -kv[1].get("checked", 0))[:12]

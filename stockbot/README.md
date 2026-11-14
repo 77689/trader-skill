@@ -201,3 +201,25 @@ Once per trading day after the 4 PM close the bot sends a phone notification:
 lost, with the day's dollars, the same money in SPY, and the total since the
 start. `python stockbot.py report` sends the latest one right away. Turn it off
 with `"daily_report": false` in config.json.
+
+## Fast news (about once a minute)
+
+`fastnews.py` adds two quicker sources on top of the 15-minute per-stock check,
+which keeps running as the backstop:
+
+- **SEC latest-filings feed**: one request lists the newest 8-Ks from every
+  company. SEC says a filing reaches its site 1-3 minutes after it is accepted,
+  and the bot looks once a minute, so an 8-K on one of your stocks shows up
+  within a few minutes instead of up to 15.
+- **Alpaca news**: headlines (Benzinga) for your stocks with the same paper
+  keys. How fresh they are depends on the account's news access; the Stocks tab
+  shows the age of the newest headline so you can see what you get.
+
+A red-flag 8-K (bankruptcy, delisting, cyber incident, impairment, debt
+acceleration, auditor change, unreliable past financials) on a stock you hold
+sends a phone alert right away and blocks new buys of that stock through the
+same news check that already runs before every buy. Nothing here places a
+trade. It runs once a minute on weekdays 6 AM to 10 PM New York time and every
+10 minutes otherwise; `"news_seconds": 0` in config.json turns it off.
+`python stockbot.py newstest` runs one pass and prints what each source
+returned.

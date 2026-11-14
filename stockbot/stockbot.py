@@ -30,6 +30,7 @@ import time
 import urllib.error
 import urllib.request
 
+import fastnews
 import quality
 import signals
 
@@ -106,6 +107,7 @@ DEFAULTS = {
     "cycle_seconds": 300,
     "live_seconds": 15,            # live prices for the dashboard every 15 s (Alpaca data, free IEX feed)
     "daily_report": True,          # after each close: a phone notification, "the bot is doing good / bad"
+    "news_seconds": 60,            # fast news: SEC's latest-filings feed + Alpaca headlines this often (0 = off)
     "refresh_days": 7,
     "sec_user_agent": "",
 }
@@ -510,7 +512,14 @@ def news_check(symbols, cfg):
                 gate[s] = {"checked": time.time(), "red": red, "headlines": len(heads),
                            "time": stamp()}
             save("news_gate.json", gate)
-    return {s: gate.get(s, {}).get("red", []) for s in symbols}
+    out = {s: list(gate.get(s, {}).get("red", [])) for s in symbols}
+    cutoff = (now() - datetime.timedelta(days=cfg["news_gate_days"])).strftime("%Y-%m-%d")
+    fast = load("fast_news.json", {}).get("red", {})          # red flags from the one-minute SEC feed
+    for s in symbols:
+        for f in fast.get(s, []):
+            if f.get("day", "") >= cutoff and f.get("text") and f["text"] not in out[s]:
+                out[s].append(f["text"])
+    return out
 
 
 def risk_and_place(sleeve, orders, d, cfg, alpaca, prices, exit_orders=False):
@@ -1249,7 +1258,7 @@ def news(cfg, state):
     items = json.loads(out).get("items", [])
     keep = [i for i in items if i.get("kind") == "filing"] + [i for i in items if i.get("kind") != "filing"][:40]
     save("news.json", {"time": stamp(), "items": sorted(keep, key=lambda i: i.get("time", ""), reverse=True)})
-    seen = set(state.get("red_seen", []))
+    seen = set(state.get("red_seen", [])) | set(load("fast_news.json", {}).get("seen", []))
     held = {x for s in SLEEVES for x in holdings(s)[0]}
     for i in items:
         codes = [c for c in i.get("items") or [] if c in RED_8K]
@@ -1668,6 +1677,86 @@ def cycle(cfg, alpaca):
 
 SLOW = {"thread": None}
 LIVE = {"thread": None}
+FAST = {"thread": None}
+
+
+def fast_news_pass(alpaca, cfg):
+    """One look at SEC's latest-filings feed and Alpaca's headlines for the stocks you follow.
+    Saves fast_news.json for the dashboard and the buy gate; alerts on a red-flag 8-K for a
+    stock you hold. Returns what it found (also what `stockbot.py newstest` prints)."""
+    old = load("fast_news.json", {})
+    items = {i["id"]: i for i in old.get("items", []) if i.get("id")}
+    seen, red = set(old.get("seen", [])), old.get("red", {})
+    seen |= set(load("slow_state.json", {}).get("red_seen", []))   # already alerted by the 15-minute check
+    held = {x for n in SLEEVES for x in holdings(n)[0]}
+    watch = set(all_symbols()) | held
+    out = {"time": stamp(), "ts": time.time(), "watching": len(watch)}
+    try:                                                   # 1. SEC: every company's newest 8-Ks, one request
+        ciks = quality.ciks(cfg["sec_user_agent"], path("sec_cache"))
+        by_cik = {ciks[t][0]: t for t in sorted(watch) if t in ciks}
+        entries = fastnews.parse_sec(fastnews.fetch(fastnews.SEC_CURRENT, {"User-Agent": cfg["sec_user_agent"]}))
+        mine = fastnews.sec_items(entries, by_cik)
+        out["sec"] = {"ok": True, "in_feed": len(entries), "yours": len(mine),
+                      "newest": entries[0]["time"] if entries else None}
+        for it in mine:
+            items[it["id"]] = it
+            codes = [c for c in it["items"] if c in RED_8K]
+            day = (it.get("time") or "")[:10]
+            for c in codes:
+                text = "%s 8-K %s: %s" % (day, c, RED_8K[c])
+                if not any(f.get("text") == text for f in red.get(it["ticker"], [])):
+                    red.setdefault(it["ticker"], []).append({"day": day, "text": text})
+            if codes and it["id"] not in seen:
+                seen.add(it["id"])
+                msg = "%s filed an 8-K: %s." % (it["ticker"], ", ".join(RED_8K[c] for c in codes))
+                log("FAST NEWS RED FLAG", msg)
+                if it["ticker"] in held:
+                    notify("stockbot red flag %s" % it["ticker"], msg + " You hold it; take a look.")
+    except Exception as ex:
+        out["sec"] = {"ok": False, "error": str(ex)[:200]}
+    try:                                                   # 2. Alpaca: headlines for your stocks
+        if not alpaca.ready:
+            raise RuntimeError("no Alpaca keys")
+        if watch:
+            d = alpaca.data("/v1beta1/news?symbols=%s&limit=50&sort=desc" % ",".join(sorted(watch)))
+            mine = fastnews.alpaca_items((d or {}).get("news"), watch)
+            for it in mine:
+                items[it["id"]] = it
+            newest = max((it["time"] for it in mine if it["time"]), default=None)
+            out["alpaca"] = {"ok": True, "headlines": len(mine), "newest": newest}
+    except Exception as ex:
+        out["alpaca"] = {"ok": False, "error": str(ex)[:200]}
+    cutoff = (now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d")
+    out["red"] = {t: [f for f in fl if f.get("day", "") >= cutoff] for t, fl in red.items()}
+    out["red"] = {t: fl for t, fl in out["red"].items() if fl}
+    out["seen"] = sorted(seen)[-300:]
+    out["items"] = sorted(items.values(), key=lambda i: i.get("time") or "", reverse=True)[:150]
+    for k in ("sec", "alpaca"):                            # keep the last good numbers visible next to an error
+        if not out.get(k, {}).get("ok") and old.get(k):
+            out[k] = dict(old[k], ok=False, error=out.get(k, {}).get("error", "skipped"))
+    save("fast_news.json", out)
+    return out
+
+
+def fast_news(alpaca, cfg):
+    """Background loop. About once a minute on weekdays 6 AM - 10 PM New York time (when SEC
+    takes filings), every 10 minutes otherwise."""
+    while True:
+        try:
+            fast_news_pass(alpaca, cfg)
+        except Exception as ex:
+            log("fast news error:", str(ex)[:200])
+        n = ny_now()
+        busy = n.weekday() < 5 and 6 <= n.hour < 22
+        time.sleep(max(30, cfg.get("news_seconds", 60)) if busy else 600)
+
+
+def start_fast_news(alpaca, cfg):
+    import threading
+    if not cfg.get("news_seconds") or (FAST["thread"] and FAST["thread"].is_alive()):
+        return
+    FAST["thread"] = threading.Thread(target=fast_news, args=(alpaca, cfg), daemon=True)
+    FAST["thread"].start()
 
 
 def live_prices(alpaca, cfg):
@@ -1758,6 +1847,31 @@ def main():
         print(r[0] + "\n" + r[1])
         notify(*r)
         return
+    if cmd == "newstest":               # one pass of the fast news check, printed
+        r = fast_news_pass(alpaca, cfg)
+
+        def ago(iso):
+            a = fastnews.age_seconds(iso)
+            return "?" if a is None else ("%d s ago" % a if a < 120 else "%d min ago" % (a / 60) if a < 7200
+                                          else "%.1f h ago" % (a / 3600))
+        print("watching %d stocks" % r["watching"])
+        x = r.get("sec", {})
+        print("SEC feed:    " + ("OK, %d filings in the feed, newest %s, %d on your stocks"
+                                 % (x["in_feed"], ago(x.get("newest")), x["yours"]) if x.get("ok")
+                                 else "FAILED: %s" % x.get("error")))
+        x = r.get("alpaca", {})
+        print("Alpaca news: " + ("OK, %d headlines on your stocks, newest %s" % (x["headlines"], ago(x.get("newest")))
+                                 if x.get("ok") else "FAILED: %s" % x.get("error")))
+        for i in r["items"][:8]:
+            when = (i.get("time") or "")[5:16].replace("T", " ") + " UTC"
+            try:
+                from zoneinfo import ZoneInfo
+                when = datetime.datetime.fromisoformat(i["time"]).astimezone(
+                    ZoneInfo("America/New_York")).strftime("%m-%d %H:%M")
+            except Exception:
+                pass
+            print("  %s  %-6s %s" % (when, ",".join(i["touches"])[:6], i["title"][:90]))
+        return
     if cmd == "status":
         print(json.dumps({"status": load("status.json", {}), "account": load("account.json", {}),
                           "orders": len(ledger())}, indent=1))
@@ -1765,6 +1879,7 @@ def main():
     log("stockbot start, mode=%s, alpaca keys=%s, base=%s" % (cfg["mode"], alpaca.ready, BASE))
     if cmd == "run":
         start_live(alpaca, cfg)
+        start_fast_news(alpaca, cfg)
     while True:
         cfg = config()
         cycle(cfg, alpaca)
