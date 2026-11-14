@@ -11,9 +11,17 @@ URLFILE="$DATA/share_url.txt"
 LOG="$DATA/share.log"
 
 if [ "$1" = "stop" ]; then
-  pkill -f "stockbot/share.sh" ; pkill -f "cloudflared tunnel"
+  # stop the restart loop first (but not this script itself), then the tunnel
+  for p in $(pgrep -f "stockbot/share.sh"); do [ "$p" != "$$" ] && kill "$p" 2>/dev/null; done
+  pkill -f "cloudflared tunnel"
   rm -f "$URLFILE"
-  echo "sharing stopped"
+  termux-notification-remove stockbot-share 2>/dev/null
+  sleep 1
+  if pgrep -f "cloudflared tunnel" > /dev/null; then
+    echo "sharing: still running, try again"
+  else
+    echo "sharing stopped, the link is dead"
+  fi
   exit 0
 fi
 
