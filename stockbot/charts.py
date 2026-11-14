@@ -29,6 +29,7 @@ import math
 import statistics
 import time
 
+import scorecard
 import stockbot
 
 UP, DN, GRID, TXT, MUTED = "#26a69a", "#ef5350", "#1f2630", "#c9d1d9", "#7d8590"
@@ -853,6 +854,11 @@ def charts_page(cfg, tabs):
             ("Where the money is", alloc_html(px))):
         out.append("<section><h2>%s</h2>%s</section>" % (title, body))
     out.append("</div>")
+    out.append("<h2>Strategy scorecard</h2>")
+    try:
+        out.append(scorecard.html(px, e))
+    except Exception as ex:                    # the scorecard must never take the page down
+        out.append('<div class="ch-empty">scorecard unavailable: %s</div>' % e(str(ex)[:120]))
     held = {}
     for name in stockbot.SLEEVES:
         for sym, h in stockbot.holdings(name)[0].items():

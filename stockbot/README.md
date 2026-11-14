@@ -240,3 +240,13 @@ them to:
 
 Each line turns green by itself as it's met. It only measures: the bot still
 refuses non-paper accounts, and going live is a code change made on purpose.
+
+## Strategy scorecard
+
+`scorecard.py` adds a panel to the Charts tab: per strategy, how many sales it
+has made, how many made money, the average win and loss, how long shares were
+held, stops and targets hit, dollars banked from sales and the open gain or
+loss on what is still held. A sale counts as a trade, measured against the
+average cost of the shares sold, so the banked dollars equal the bot's own
+realized number exactly. Each row says "too few to judge" until it has 20
+sales. Below it: the last 10 sales with the reason for each.
