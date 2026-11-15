@@ -287,3 +287,8 @@ is slow the glow turns itself off (the "glow" button turns it back on).
   expects from it.
 - **City**: name tags stay off the towers.
 - The log no longer fills with the routine news line, and tool errors are one readable line.
+
+## Tests
+
+`python stockbot/tests/run.py` runs every check (about 220) in a few seconds. Each test works in
+its own temporary folder with made-up data: no network, no keys, nothing of yours is read or changed.

@@ -212,8 +212,11 @@ class Alpaca:
 def run_tool(name, args, cwd, ok_codes=(0,)):
     """Run a trader tool inside a sleeve folder. Returns (code, stdout)."""
     os.makedirs(cwd, exist_ok=True)
-    r = subprocess.run([sys.executable, TOOL[name]] + [str(a) for a in args], cwd=cwd,
-                       capture_output=True, text=True, timeout=600)
+    try:
+        r = subprocess.run([sys.executable, TOOL[name]] + [str(a) for a in args], cwd=cwd,
+                           capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("%s took more than 10 minutes and was stopped" % name)
     if r.returncode not in ok_codes:
         lines = [x.strip() for x in (r.stderr or r.stdout or "").splitlines() if x.strip()]
         raise RuntimeError("%s failed (%s): %s" % (name, r.returncode, (lines[-1] if lines else "no output")[:300]))
@@ -1258,6 +1261,20 @@ def congress(cfg, state):
 
 # ---------- news, tax and price alerts (they watch and report, never trade) ----------
 
+def log_error(name, ex, memo):
+    """Log a job's error once, then again only if the message changes or two hours pass, so one
+    outage does not fill the log. The dashboard still shows the error the whole time."""
+    seen = memo.setdefault("err_seen", {})
+    msg = str(ex)[:200]
+    last = seen.get(name) or ["", 0, 0]
+    if msg == last[0] and time.time() - last[1] < 2 * 3600:
+        seen[name] = [msg, last[1], last[2] + 1]
+        return
+    again = " (still failing: %d more times since the last line)" % last[2] if msg == last[0] and last[2] else ""
+    log(name, "ERROR", msg + again)
+    seen[name] = [msg, time.time(), 0]
+
+
 def all_symbols():
     syms = set()
     for s in SLEEVES:
@@ -1275,6 +1292,8 @@ def all_symbols():
 def news(cfg, state):
     if state.get("news_check") and time.time() - state["news_check"] < 900:
         return
+    if state.get("news_error") and time.time() - state.get("news_tried", 0) < 900:
+        raise RuntimeError(state["news_error"])        # still down: keep saying so, but only retry every 15 minutes
     syms = all_symbols()
     if not syms:
         return
@@ -1282,8 +1301,19 @@ def news(cfg, state):
     os.makedirs(os.path.join(d, "trader"), exist_ok=True)
     with open(os.path.join(d, "trader", "config.json"), "w") as f:
         json.dump({"sec_user_agent": cfg["sec_user_agent"]}, f)
-    _, out = run_tool("news", ["--tickers"] + syms + ["--hours", 48, "--all", "--json", "--dry-run"], d)
-    items = json.loads(out).get("items", [])
+    state["news_tried"] = time.time()
+    try:
+        _, out = run_tool("news", ["--tickers"] + syms + ["--hours", 48, "--all", "--json", "--dry-run"], d)
+        got = json.loads(out)
+    except Exception as ex:
+        state["news_error"] = str(ex)[:200]
+        raise
+    items = got.get("items", [])
+    down = sorted({n.split("skipped, ")[1] for n in got.get("notes", []) if "skipped, " in n})
+    if down and not items:
+        state["news_error"] = "no news: %s" % " and ".join(down)
+        raise RuntimeError(state["news_error"])
+    state.pop("news_error", None)
     keep = [i for i in items if i.get("kind") == "filing"] + [i for i in items if i.get("kind") != "filing"][:40]
     save("news.json", {"time": stamp(), "items": sorted(keep, key=lambda i: i.get("time", ""), reverse=True)})
     seen = set(state.get("red_seen", [])) | set(load("fast_news.json", {}).get("seen", []))
@@ -1677,7 +1707,7 @@ def cycle(cfg, alpaca):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:
-            log(name, "ERROR", ex)
+            log_error(name, ex, state)
             status["errors"].append("%s: %s" % (name, str(ex)[:200]))
     if cfg["mode"] == "paper_approve":
         try:
@@ -1696,7 +1726,7 @@ def cycle(cfg, alpaca):
         try:
             fn()
         except Exception as ex:
-            log(name, "ERROR", ex)
+            log_error(name, ex, state)
             status["errors"].append("%s: %s" % (name, str(ex)[:200]))
     status["errors"] += load("slow_errors.json", [])
     status["session"] = state.get("session")
@@ -1846,7 +1876,7 @@ def slow_jobs(cfg):
         try:
             fn(cfg, st)
         except Exception as ex:
-            log(name, "ERROR", ex)
+            log_error(name, ex, st)
             errors.append("%s: %s" % (name, str(ex)[:200]))
     save("slow_state.json", st)
     save("slow_errors.json", errors)

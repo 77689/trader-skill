@@ -33,6 +33,7 @@ import datetime as _dt
 import email.utils
 import gzip
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -119,6 +120,7 @@ class Fetcher(object):
         self.offline = offline
         self.pause = pause
         self._last = 0.0
+        self._down = {"SEC": 0, "Yahoo": 0}      # failures in a row per source; three and it is skipped this run
 
     def get(self, url, name, sec=False):
         if self.offline:
@@ -129,6 +131,9 @@ class Fetcher(object):
                 return fh.read()
         if sec and not self.sec_ua:
             raise NewsError("no SEC User-Agent set")
+        src = "SEC" if sec else "Yahoo"
+        if self._down[src] >= 3:
+            raise NewsError("skipped, %s is not answering" % src)
         gap = time.time() - self._last
         if gap < self.pause:
             time.sleep(self.pause - gap)
@@ -136,15 +141,24 @@ class Fetcher(object):
         headers = {"User-Agent": self.sec_ua if sec else BROWSER_UA, "Accept-Encoding": "gzip"}
         req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=20) as resp:
                 data = resp.read()
                 if resp.headers.get("Content-Encoding") == "gzip":
                     data = gzip.decompress(data)
+                self._down[src] = 0
                 return data
         except urllib.error.HTTPError as exc:
+            if exc.code in (403, 429) or exc.code >= 500:
+                self._down[src] += 1
             raise NewsError("HTTP %s for %s" % (exc.code, url))
         except urllib.error.URLError as exc:
+            self._down[src] += 1
             raise NewsError("could not reach %s: %s" % (url, exc.reason))
+        except (OSError, http.client.HTTPException, EOFError) as exc:
+            # a read that times out half way is not a URLError; without this one slow answer
+            # used to end the whole run instead of being skipped like any other failed source
+            self._down[src] += 1
+            raise NewsError("%s did not answer in time (%s)" % (src, exc.__class__.__name__))
 
 
 def yahoo_symbol(ticker):

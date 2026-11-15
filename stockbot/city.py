@@ -709,7 +709,7 @@ function frame(now) {
     }
     // the name tag stays off the towers: under the pad for districts on the near side, above the roofs for the far side
     const depth = d.g.position.x * camDir.x + d.g.position.z * camDir.z;
-    const f = Math.min(1, Math.max(0, (depth + 3) / 10)), kk = f * f * (3 - 2 * f);
+    const f = Math.min(1, Math.max(0, (depth + 13) / 9)), kk = f * f * (3 - 2 * f);
     tA.set(d.g.position.x - camDir.x * 7.6, 0.2, d.g.position.z - camDir.z * 7.6);
     tB.set(d.g.position.x, d.top + 2.5, d.g.position.z);
     place(d.lbl, tA.lerp(tB, kk), (1 - kk) * ((d.lbl.offsetHeight || 34) + 6), 'x');
