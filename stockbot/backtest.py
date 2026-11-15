@@ -49,7 +49,9 @@ def expect(name):
     if not s:
         return ""
     win = "wins %d%% of trades, " % s["win_rate"] if s.get("win_rate") is not None else ""
-    return "26-yr test: %s%s a year, worst drop %.0f%%" % (win, _pc(s["per_year"]), s["worst_drop"])
+    yrs = int(s["years"]) if s.get("from") else 26            # Screener and Berkshire have a shorter history
+    spy = " (SPY %s then)" % _pc(s["spy_per_year"]) if s.get("spy_per_year") is not None else ""
+    return "%d-yr test: %s%s a year, worst drop %.0f%%%s" % (yrs, win, _pc(s["per_year"]), s["worst_drop"], spy)
 
 
 def chart(d):
@@ -103,6 +105,31 @@ def section(e=html.escape):
     for key, label in NAMES:
         if key in st:
             row(label, st[key]["new"], old=st[key].get("old"))
+    short = []                                             # the two strategies that need SEC filings: shorter history
+    for key, label in (("screener", "Screener"), ("berkshire", "Berkshire")):
+        s = st.get(key, {}).get("new")
+        if s:
+            short.append('<span class="l">%s <small>since %s</small></span><span class="n">%s</span><span class="n">%.0f%%</span>'
+                         '<span class="n spy">%s</span>' % (label, e(s["from"][:4]), _pc(s["per_year"]), s["worst_drop"], _pc(s["spy_per_year"])))
+            o = st[key].get("old")
+            if o and abs(o["per_year"] - s["per_year"]) >= 0.05:
+                short.append('<span class="l old">before the fix</span><span class="n old">%s</span><span class="n old">%.0f%%</span>'
+                             '<span class="n old"></span>' % (_pc(o["per_year"]), o["worst_drop"]))
+    a7 = d.get("all7")
+    if a7:
+        short.append('<span class="l tot">All 7 <small>since %s</small></span><span class="n tot">%s</span><span class="n tot">%.0f%%</span>'
+                     '<span class="n tot">%s</span>' % (e(a7["from"][:4]), _pc(a7["per_year"]), a7["worst_drop"], _pc(a7["spy_per_year"])))
+    short_html = ""
+    if short:
+        short_html = ('<h3 style="margin-top:14px">the two that need company filings</h3><div class="bt"><span class="hd l">strategy</span>'
+                      '<span class="hd">a year</span><span class="hd">worst drop</span><span class="hd">spy then</span>%s</div>' % "".join(short))
+    seven = ""
+    if a7:
+        seven = (' All seven together since %s: $%s became %s, SPY %s. SPY\'s worst drop in those years was %.0f%%, the bot\'s %.0f%%; '
+                 'the bot beat SPY in %d of %d years.'
+                 % (e(a7["from"][:4]), format(a7["start_usd"], ","), _k(a7["end_usd"]), _k(a7["spy_end_usd"]), a7["spy_worst_drop"],
+                    a7["worst_drop"], a7["beat_spy_years"], a7["n_years"]))
+    sc = d.get("screener_coverage", {})
     row("All 5 together", bot["new"], "tot", old=bot.get("old"))
     row("SPY", spy, "spy")
     down = "".join('<span class="l">%s</span><span class="n">%+d%%</span><span class="n">%+d%%</span>' % (e(y), b, s)
@@ -114,18 +141,21 @@ def section(e=html.escape):
             '<div class="cap">$%s on %s, split the way the bot splits it and reset to that split each January. '
             'The bot ended at %s (%s a year), SPY at %s (%s a year). The bot beat SPY in %d of %d years: it earns '
             'less in good years and loses much less in bad ones. Tap the chart for a year.</div></section>'
-            '<section><div class="bt">%s</div>'
+            '<section><div class="bt">%s</div>%s'
             '<h3 style="margin-top:14px">the years the market fell</h3>'
             '<div class="bt bt3"><span class="hd l">year</span><span class="hd">bot</span><span class="hd">spy</span>%s</div>'
             '<div class="cap">What this is: the bot\'s own rules replayed day by day, buying at the next open, with trading costs. '
             'Stocks come from the companies that were in the S&amp;P 500 at the time, not from today\'s winners. '
-            'What it leaves out: Screener and Berkshire (they need old company financials), so this is five of the seven strategies. '
+            'The chart and first table are the five strategies that only need prices. Screener and Berkshire need SEC filings '
+            'with dates, which start in 2011 and 2013, so they are tested from then.%s '
             'Prices exist for %s%% of the index in 2000, %s%% in 2008 and %s%% in 2015; the missing ones are mostly companies that '
-            'failed or were bought, so the early years are probably a little flattering. Unused cash earns nothing here. '
+            'failed or were bought, so the early years are probably a little flattering. The Screener test only sees companies that '
+            'still have a ticker today (%s%% of the index in 2011, %s%% now). Unused cash earns nothing here. '
             'A test of the past is not a promise.</div></section></div>'
             % (BOT, _k(end_b), SPY, _k(end_s), chart(d), format(d["start_usd"], ","), e(d["from"]), _k(end_b), _pc(bot["new"]["per_year"]),
-               _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]), "".join(rows), down,
-               *("%.0f" % cov[y] if y in cov else "?" for y in ("2000", "2008", "2015"))))
+               _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]), "".join(rows), short_html, down, seven,
+               *("%.0f" % min(cov[y], 99) if y in cov else "?" for y in ("2000", "2008", "2015")),
+               sc.get("2011", "?"), sc.get(max(sc) if sc else "", "?")))
 
 
 CSS = """
@@ -139,6 +169,8 @@ CSS = """
 .bt .tot { color:#f0b429; font-weight:700; border-top:1px solid #1f2630; padding-top:6px; margin-top:2px; }
 .bt .spy { color:#c9d1d9; }
 .bt .old { color:#7d8590; font-size:11px; margin-top:-4px; }
+.bt small { color:#7d8590; font-size:10px; display:block; font-weight:400; }
+.bt .n.spy { color:#8b949e; }
 .bt-leg { font-family:ui-monospace, Menlo, monospace; }
 .bt-svg { cursor:crosshair; }
 """

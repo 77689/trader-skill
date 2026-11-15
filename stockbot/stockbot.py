@@ -1130,6 +1130,25 @@ def due(state, key, days):
     return (now() - datetime.datetime.strptime(last, "%Y-%m-%d")).days >= days
 
 
+def skipped_big(tfile):
+    """Names the copy had to leave out for want of a ticker although they are bigger than a stock it
+    kept. The tool lists what it skipped from biggest to smallest, so a "no ticker" entry that comes
+    before the first "outside the top N" one would have made the cut."""
+    try:
+        with open(tfile) as f:
+            skipped = json.load(f).get("skipped", [])
+    except Exception:
+        return []
+    out = []
+    for x in skipped:
+        why = str(x.get("why") or "")
+        if "outside the top" in why:
+            break
+        if "no ticker" in why:
+            out.append(str(x.get("name") or x.get("issuer") or "?"))
+    return out
+
+
 def berkshire(cfg, alpaca, state, is_open):
     d = write_sleeve_config("berkshire", cfg, cfg["berkshire_budget"])
     tfile = os.path.join(d, "trader", "targets.json")
@@ -1146,9 +1165,21 @@ def berkshire(cfg, alpaca, state, is_open):
     gap = 3600 if now().month in (2, 5, 8, 11) and 10 <= now().day <= 20 else cfg["refresh_days"] * 86400
     if time.time() - state.get("berkshire_checked", 0) > gap or not os.path.exists(tfile):
         before = filed()
-        run_tool("copycat", ["copy", "1067983", "--top", 5, "--combine"], d)
+        # --figi looks every ticker up by its CUSIP. Matching by company name alone skipped big
+        # positions whose 13F name is abbreviated ("CHEVRON CORP NEW", "INTERNATIONAL BUSINESS MACHS"):
+        # in the 2013-2026 replay that changed the top 5 in 31 of 53 filings.
+        try:
+            run_tool("copycat", ["copy", "1067983", "--top", 5, "--combine", "--figi"], d)
+        except Exception as ex:
+            log("berkshire: exact ticker lookup failed (%s), matching by name instead" % str(ex)[:90])
+            run_tool("copycat", ["copy", "1067983", "--top", 5, "--combine"], d)
         state["berkshire_checked"] = time.time()
         after = filed()
+        big = skipped_big(tfile)
+        if big and state.get("berkshire_skipped") != [after, big]:
+            log("berkshire: WARNING no ticker found for %s, one of the biggest positions in the 13F filed %s. "
+                "The copy leaves it out" % (", ".join(big), after))
+            state["berkshire_skipped"] = [after, big]
         if before and after != before:
             log("berkshire: NEW 13F filed %s, replanning today" % after)
             state.pop("berkshire_plan", None)

@@ -12,6 +12,12 @@ full refresh is about 4 MB):
 Only filed numbers are used (a frame only has what companies already filed),
 so there is no look-ahead. Banks and insurers have no gross profit and are
 left out on purpose.
+
+Stock splits: EPS in a filing is per share as counted on the filing day. After a
+10-for-1 split the price is a tenth but the filed EPS is still per old share,
+so the earnings yield looked ten times too good until the next annual report.
+split_factor() brings the EPS to today's share count (splits come from Yahoo).
+In the 2011-2026 replay this bug changed the picks in 27 of 63 quarters.
 """
 
 import datetime
@@ -19,10 +25,14 @@ import gzip
 import json
 import os
 import time
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 FRAME = "https://data.sec.gov/api/xbrl/frames/us-gaap/%s/%s/%s.json"
 TICKERS = "https://www.sec.gov/files/company_tickers.json"
+SPLITS = "https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1mo&range=5y&events=splits"
+BROWSER_UA = "Mozilla/5.0 (stockbot)"
 
 REVENUE = ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"]
 COGS = ["CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold",
@@ -87,8 +97,88 @@ def _first(frames, cik):
     return None
 
 
-def metrics(universe, prices, ua, cache_dir, today=None):
-    """[{ticker, name, gross_profit_to_assets, earnings_yield, eps_ttm, fiscal_end, ...}], year used."""
+def split_events(tickers, cache_dir, max_days=7):
+    """{ticker: [[ex-date, ratio], ...]} for the last five years, from Yahoo, cached for a week.
+    A ticker that cannot be read is left out: no adjustment is better than a screener that stops."""
+    os.makedirs(cache_dir, exist_ok=True)
+    f = os.path.join(cache_dir, "splits.json")
+    try:
+        with open(f) as fh:
+            cache = json.load(fh)
+    except Exception:
+        cache = {}
+    now = time.time()
+
+    def one(t):
+        c = cache.get(t)
+        if c and now - c.get("t", 0) < max_days * 86400:
+            return t, c["s"], False
+        try:
+            req = urllib.request.Request(SPLITS % urllib.parse.quote(t.replace(".", "-")), headers={"User-Agent": BROWSER_UA})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                d = json.loads(r.read().decode("utf-8"))["chart"]["result"][0]
+            off = (d.get("meta") or {}).get("gmtoffset") or 0
+            s = sorted([datetime.datetime.fromtimestamp(int(v.get("date", k)) + off, datetime.timezone.utc).strftime("%Y-%m-%d"),
+                        float(v["numerator"]) / float(v["denominator"])]
+                       for k, v in ((d.get("events") or {}).get("splits") or {}).items()
+                       if v.get("numerator") and v.get("denominator"))
+            return t, s, True
+        except Exception:
+            return t, (c or {}).get("s"), False          # an old answer beats none
+
+    out, fresh = {}, False
+    with ThreadPoolExecutor(4) as ex:
+        for t, s, new in ex.map(one, list(tickers)):
+            if s is not None:
+                out[t] = s
+                if new:
+                    cache[t] = {"t": now, "s": s}; fresh = True
+    if fresh:
+        with open(f, "w") as fh:
+            json.dump(cache, fh)
+    return out
+
+
+SUBMISSIONS = "https://data.sec.gov/submissions/CIK%010d.json"
+
+
+def filed_on(cik, accn, ua, cache_dir):
+    """The day a filing reached SEC ('YYYY-MM-DD'), or None. One small request, only made for the
+    few companies that split their stock lately."""
+    try:
+        rec = _cached("submissions_%d.json" % cik, SUBMISSIONS % cik, ua, cache_dir, 20)["filings"]["recent"]
+        return rec["filingDate"][rec["accessionNumber"].index(accn)]
+    except Exception:
+        return None
+
+
+def split_factor(eps_row, splits, today, filed=None):
+    """How many of today's shares one share was when this EPS was filed (1.0 = no split since).
+
+    filed: the filing's date when known; then a split counts exactly when it came after that day.
+    Without it the frame row still tells the period end and, in its accession number, the filing
+    year: a split counts when it came more than 75 days after the period end (annual reports are
+    due within 60) and not before the filing year. Ratios close to 1 are spin-off adjustments,
+    not splits, and are ignored."""
+    f = 1.0
+    try:
+        if filed:
+            after = lambda d: filed < d
+        else:
+            cut = (datetime.date.fromisoformat(eps_row["end"]) + datetime.timedelta(days=75)).isoformat()
+            year = 2000 + int(str(eps_row["accn"]).split("-")[1])
+            after = lambda d: cut < d and int(d[:4]) >= year
+        for d, ratio in splits or []:
+            if ratio and (ratio >= 1.25 or 0 < ratio <= 0.8) and d <= today.isoformat() and after(d):
+                f *= ratio
+    except Exception:
+        return 1.0
+    return f
+
+
+def metrics(universe, prices, ua, cache_dir, today=None, splits=None):
+    """[{ticker, name, gross_profit_to_assets, earnings_yield, eps_ttm, fiscal_end, ...}], year used.
+    splits: {ticker: [[date, ratio]]} for tests; left out, they are read from Yahoo."""
     today = today or datetime.date.today()
     tick = ciks(ua, cache_dir)
     year, f = None, None
@@ -100,6 +190,11 @@ def metrics(universe, prices, ua, cache_dir, today=None):
             break
     if f is None:
         return [], None
+    if splits is None:
+        try:
+            splits = split_events([t for t in universe if t in tick and tick[t][0] in f["eps"] and prices.get(t)], cache_dir)
+        except Exception:
+            splits = {}
     out = []
     for t in universe:
         if t not in tick:
@@ -121,8 +216,13 @@ def metrics(universe, prices, ua, cache_dir, today=None):
             if 0 < gpa <= 100:                  # above 100% means the tags don't fit this company
                 row["gross_profit_to_assets"] = round(gpa, 2)
         if eps and p:
-            row["eps_ttm"] = eps["val"]
-            row["earnings_yield"] = round(eps["val"] / p * 100, 2)
+            k = split_factor(eps, splits.get(t), today)
+            if k != 1.0:                                  # rare: make sure with the filing's real date
+                k = split_factor(eps, splits.get(t), today, filed_on(cik, eps.get("accn"), ua, cache_dir))
+            if k != 1.0:
+                row["split_adjusted"] = round(k, 4)       # EPS was filed before a split: brought to today's share count
+            row["eps_ttm"] = round(eps["val"] / k, 4)
+            row["earnings_yield"] = round(eps["val"] / k / p * 100, 2)
         out.append(row)
     return out, year
 

@@ -272,7 +272,11 @@ is slow the glow turns itself off (the "glow" button turns it back on).
 - **26-year test** (`stockbot/backtest/`, results in `backtest.json`, shown on the Charts tab): the
   bot's rules replayed from 2000 to 2026 on the companies that were in the S&P 500 at the time
   (member list from fja05680/sp500, prices from Yahoo plus the Quandl WIKI archive for dead
-  companies). Five of the seven strategies; Screener and Berkshire are not in it yet.
+  companies). The five price strategies run from 2000. Screener and Berkshire need SEC filings
+  with dates, so they run from 2011 and 2013: the Screener's numbers are rebuilt as they stood on
+  each day from SEC's companyfacts filing dates, and Berkshire's top 5 comes from every 13F since
+  2013 read with the bot's own copycat tool. All seven together since Aug 2013: 10.1% a year with
+  a -22% worst drop, against SPY's 14.1% and -34%.
 - **Swing and breakout now scan about 100 stocks** (the most-traded S&P 500 names) instead of 30
   hand-picked giants, and **open new trades only while SPY is above its 200-day average**
   (`trade_market_filter_days`, 0 turns it off; exits are never blocked). In the test this took
@@ -292,3 +296,16 @@ is slow the glow turns itself off (the "glow" button turns it back on).
 
 `python stockbot/tests/run.py` runs every check (about 220) in a few seconds. Each test works in
 its own temporary folder with made-up data: no network, no keys, nothing of yours is read or changed.
+
+### Two bugs the long test found (both fixed)
+
+- **Screener and stock splits.** EPS in a filing is per share as counted that day. After a split
+  the price drops but the filed EPS does not, so the earnings yield looked many times too good
+  until the next annual report (Booking after its 25-for-1 in April 2026 showed a 104% yield).
+  In the replay this changed the picks in 27 of 63 quarters. `quality.split_factor()` now brings
+  the EPS to today's share count, using Yahoo's split dates and the filing's real date from SEC.
+- **Berkshire and tickers.** The copy matched 13F company names to tickers, and abbreviated names
+  ("CHEVRON CORP NEW", "INTERNATIONAL BUSINESS MACHS") found none, so the stock was silently left
+  out of the top 5: 31 of 53 filings since 2013. The bot now asks for exact tickers by CUSIP
+  (`--figi`), falls back to names if that service is down, and logs a warning when a position
+  bigger than one it kept has no ticker.

@@ -210,5 +210,69 @@ check("the scorecard shows what the test expects", "26-yr test:" in scorecard.ht
 socket.socket.connect = real_connect
 check("no page tried to reach the network", tried == [], tried[:3])
 
+# ---- stock splits and the earnings yield
+import quality
+day = datetime.date(2024, 8, 1)
+sp = [["2024-06-10", 10.0]]
+row = {"end": "2024-01-28", "accn": "0001045810-24-000029", "val": 11.93}
+check("split after the filing -> 10", quality.split_factor(row, sp, day) == 10.0)
+check("filing date known and before the split -> 10", quality.split_factor(row, sp, day, "2024-02-21") == 10.0)
+check("restated by a later report -> 1", quality.split_factor(dict(row, accn="0001045810-25-000023"), sp, datetime.date(2025, 3, 1), "2025-02-26") == 1.0)
+same = {"end": "2025-06-30", "accn": "0000319201-26-000027"}
+check("restated in the split's own year: the real filing date decides",
+      quality.split_factor(same, [["2026-06-12", 10.0]], datetime.date(2026, 11, 15), "2026-08-06") == 1.0)
+check("... which the rule of thumb alone would get wrong", quality.split_factor(same, [["2026-06-12", 10.0]], datetime.date(2026, 11, 15)) == 10.0)
+check("a split still in the future is not applied", quality.split_factor(row, sp, datetime.date(2024, 5, 1)) == 1.0)
+check("a split inside the 75 days after the period end counts as already in the report",
+      quality.split_factor({"end": "2023-12-31", "accn": "x-24-1"}, [["2024-01-20", 2.0]], day) == 1.0)
+check("reverse split", quality.split_factor(row, [["2024-06-10", 0.1]], day) == 0.1)
+check("spin-off adjustments (ratio near 1) are ignored", quality.split_factor(row, [["2024-06-10", 0.9535], ["2024-07-01", 1.061]], day) == 1.0)
+check("no splits, or a row without dates -> 1", quality.split_factor(row, None, day) == 1.0 and quality.split_factor({}, sp, day) == 1.0)
+quality.ciks = lambda ua, d: {"NVDA": (1, "Nvidia"), "KO": (2, "Coke")}
+frames = {"rev": [{}], "cogs": [{}], "gp": {1: {"val": 40.0, "end": "2024-01-28"}, 2: {"val": 20.0, "end": "2023-12-31"}},
+          "eps": {1: {"val": 11.93, "end": "2024-01-28", "accn": "0001045810-24-000029"},
+                  2: {"val": 2.47, "end": "2023-12-31", "accn": "0000021344-24-000009"}},
+          "assets": [{1: {"val": 100.0}, 2: {"val": 100.0}}, {}]}
+quality.year_data = lambda y, ua, d: frames if y == 2023 else {"eps": {}}
+asked = []
+quality.filed_on = lambda cik, accn, ua, d: asked.append(cik) or "2024-02-21"
+rows, year = quality.metrics(["NVDA", "KO"], {"NVDA": 120.0, "KO": 60.0}, "ua", D, today=day, splits={"NVDA": sp})
+r = {x["ticker"]: x for x in rows}
+check("metrics uses the year most companies have filed", year == 2023, year)
+check("NVDA after its 10-for-1: the yield is per new share", r["NVDA"]["earnings_yield"] == round(1.193 / 120 * 100, 2)
+      and r["NVDA"]["split_adjusted"] == 10.0, r["NVDA"])
+check("KO is untouched", r["KO"]["earnings_yield"] == round(2.47 / 60 * 100, 2) and "split_adjusted" not in r["KO"], r["KO"])
+check("the filing date is only looked up for the company that split", asked == [1], asked)
+rows, _ = quality.metrics(["NVDA", "KO"], {"NVDA": 120.0, "KO": 60.0}, "ua", D, today=day, splits={})
+check("no split data -> numbers as filed, never a crash", {x["ticker"]: x for x in rows}["NVDA"]["earnings_yield"] == round(11.93 / 120 * 100, 2))
+
+# ---- berkshire: exact tickers first, name matching as the fallback, a warning when a big position is skipped
+calls = []
+def fake_tool(name, args, cwd, ok_codes=(0,)):
+    calls.append([str(a) for a in args])
+    if "--figi" in args:
+        raise RuntimeError("copycat failed (1): OpenFIGI not reachable")
+    os.makedirs(os.path.join(cwd, "trader"), exist_ok=True)
+    json.dump({"filed": "2026-08-14", "weights": [{"ticker": "AAPL", "weight": 60}, {"ticker": "KO", "weight": 40}],
+               "skipped": [{"name": "CHEVRON CORP NEW", "why": "no ticker found (add it to trader/tickers.json or run with --figi)"},
+                           {"name": "MOODYS CORP", "why": "outside the top 5"}, {"name": "TINY CO", "why": "no ticker found"}]},
+              open(os.path.join(cwd, "trader", "targets.json"), "w"))
+    return 0, ""
+stockbot.run_tool = fake_tool
+logs.clear(); bst = {}
+stockbot.berkshire(cfg, None, bst, False)
+check("berkshire asks for exact tickers first, then falls back to names", len(calls) == 2 and "--figi" in calls[0] and "--figi" not in calls[1], calls)
+check("... and logs that it fell back", any("exact ticker lookup failed" in l for l in logs), logs)
+warn = [l for l in logs if "WARNING no ticker found" in l]
+check("a big position without a ticker is flagged, a small one is not", len(warn) == 1 and "CHEVRON CORP NEW" in warn[0] and "TINY CO" not in warn[0], logs)
+bst["berkshire_checked"] = 0
+stockbot.berkshire(cfg, None, bst, False)
+check("the warning is not repeated for the same filing", len([l for l in logs if "WARNING no ticker found" in l]) == 1, logs)
+check("screener and berkshire have their own lines for the scorecard",
+      "15-yr test" in backtest.expect("screener") and "SPY" in backtest.expect("screener") and "13-yr test" in backtest.expect("berkshire"))
+check("the panel has the two shorter tests and all seven together", "the two that need company filings" in sec.replace("\n", "") or
+      "the two that need company filings" in backtest.section())
+check("... with the all-seven line", "All 7" in backtest.section() and "All seven together since" in backtest.section())
+
 shutil.rmtree(D, ignore_errors=True)
 print("all %d checks passed" % ok)
