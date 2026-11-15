@@ -56,7 +56,7 @@ state = {}
 class NoAlpaca(object):
     def __getattr__(self, k):
         raise AssertionError("the broker must not be touched on a blocked day: %s" % k)
-stockbot.trade_sleeve("swing", cfg, NoAlpaca(), state, True)
+stockbot.trade_sleeve("swing", dict(cfg, trade_park_idle_cash=False), NoAlpaca(), state, True)
 sg = stockbot.load("swing_signals.json", {})
 mf = stockbot.load("market_filter.json", {})
 check("blocked day: plan marked done, nothing bought", state.get("swing_plan") == today and sg.get("signals") == [] and sg.get("blocked"), (state, sg))
@@ -273,6 +273,77 @@ check("screener and berkshire have their own lines for the scorecard",
 check("the panel has the two shorter tests and all seven together", "the two that need company filings" in sec.replace("\n", "") or
       "the two that need company filings" in backtest.section())
 check("... with the all-seven line", "All 7" in backtest.section() and "All seven together since" in backtest.section())
+
+# ---- idle cash parked in SPY / BIL (swing and breakout)
+stockbot.save("ledger.json", []); stockbot.save("stops.json", {}); stockbot.save("stopouts.json", [])
+PX = {"SPY": 500.0, "BIL": 90.0, "AAPL": 200.0}
+stockbot.quotes = lambda syms, d: {s_: PX[s_] for s_ in syms if s_ in PX}
+stockbot.settle = lambda alpaca, tries=4: None
+stockbot.news_check = lambda syms, c: {}
+batches, cfgs = [], []
+def fake_place(sleeve, orders, d, c, alpaca, prices, exit_orders=False):
+    """Fill every order at once at the test price, like a paper market order in the session."""
+    batches.append([(o["side"], o["symbol"], o.get("notional") or "qty " + o.get("qty", "")) for o in orders])
+    cfgs.append(json.load(open(os.path.join(d, "trader", "config.json"))))
+    rows = stockbot.ledger()
+    for o in orders:
+        p_ = PX[o["symbol"]]
+        q = float(o["qty"]) if o.get("qty") else float(o["notional"]) / p_
+        rows.append({"time": stockbot.stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"], "qty": q,
+                     "price": p_, "status": "filled", "why": o.get("why", ""), "notional": o.get("notional", "")})
+    stockbot.save("ledger.json", rows)
+    return len(orders)
+stockbot.risk_and_place = fake_place
+class Paper(object):
+    ready = True
+pc = dict(cfg, mode="paper_auto")
+def day(uptrend, orders=(), c=pc):
+    del batches[:]; del cfgs[:]
+    stockbot.move_cash("breakout", c, Paper(), 2500.0, stockbot.write_sleeve_config("breakout", c, 2500.0), list(orders), {}, uptrend)
+    return list(batches)
+b = day(True)
+check("all cash, uptrend: buys SPY, capped at the order size", b == [[("buy", "SPY", "2000.00")]], b)
+check("... with room for one ETF to hold it all", cfgs[0]["max_position_pct"] == 100 and cfgs[0]["cash_buffer_pct"] == 1, cfgs)
+sc = json.load(open(os.path.join(stockbot.sleeve_dir("breakout"), "trader", "config.json")))
+check("... and the normal risk settings are back afterwards", sc["max_position_pct"] == cfg["max_position_pct"] and sc["cash_buffer_pct"] == 10, sc)
+b = day(True)
+check("next day: the rest, keeping 2% as cash", b == [[("buy", "SPY", "450.00")]], b)
+check("then nothing to do", day(True) == [])
+b = day(False)
+check("market turns down: SPY sold (exact shares), then into BIL", len(b) == 2 and b[0][0][:2] == ("sell", "SPY") and b[0][0][2] == "qty 4.9"
+      and b[1] == [("buy", "BIL", "2000.00")], b)
+day(False)
+b = day(True)
+check("market turns up again: BIL out, SPY in", b[0][0][:2] == ("sell", "BIL") and b[1] == [("buy", "SPY", "2000.00")], b)
+day(True)
+hold, parked, real = stockbot.split_hold("breakout", pc)
+check("split_hold: parked SPY is not a trade", hold == {} and set(parked) == {"SPY"}, (hold, parked))
+trade = {"symbol": "AAPL", "side": "buy", "notional": "500.00", "type": "market", "time_in_force": "day", "why": "setup"}
+b = day(True, [trade])
+check("a new trade: SPY sold first to cover it plus the 10% buffer, then the trade, then the rest parked again",
+      len(b) == 3 and b[0][0][:2] == ("sell", "SPY") and b[1] == [("buy", "AAPL", "500.00")] and b[2][0][:2] == ("buy", "SPY"), b)
+sold = float(b[0][0][2]); back = float(b[2][0][2])
+check("... sold just enough (trade $500 + $250 buffer - the $50 kept)", 700 < sold < 720 and 150 < back < 220, (sold, back))
+check("... and the trade itself was checked with the normal risk settings", cfgs[1]["max_position_pct"] == cfg["max_position_pct"], cfgs[1])
+stockbot.market_session = lambda a, s_, o: "closed"
+stockbot.exits(pc, Paper(), {"stops_updated": stockbot.today()}, False)
+st_ = stockbot.load("stops.json", {})
+check("exits: the trade gets a stop, parked SPY does not", "AAPL" in st_.get("breakout", {}) and "SPY" not in st_.get("breakout", {}), st_)
+b = day(True, c=dict(pc, trade_park_idle_cash=False))
+check("parking switched off: the parked ETF is sold, nothing bought", len(b) == 1 and b[0][0][:2] == ("sell", "SPY"), b)
+check("parking switched off with nothing parked: nothing happens", day(True, c=dict(pc, trade_park_idle_cash=False)) == [])
+del batches[:]
+stockbot.move_cash("breakout", dict(pc, mode="paper_approve"), Paper(), 2500.0, stockbot.sleeve_dir("breakout"), [], {}, True)
+check("approve mode: no parking orders waiting for taps", batches == [])
+summ, sales = scorecard.summary({"AAPL": 200.0, "SPY": 500.0})
+br = summ["breakout"]
+check("scorecard: parking sales are not trades", br["n"] == 0 and all(x["park"] for x in sales if x["sleeve"] == "breakout"), br)
+check("scorecard: parked ETFs not counted as positions, the trade is", br["held"] == 1, br)
+real_total = stockbot.holdings("breakout")[1]
+check("scorecard: banked dollars still add up to the sleeve's", abs(br["realized"] - real_total) < 1e-6, (br["realized"], real_total))
+day(True)                                               # park again (the step above sold it)
+check("the Stocks tab labels parked cash", "breakout, idle cash" in stocks_page.render("/stocks", {}, ""))
+check("trend's BIL is still a normal holding (only swing/breakout park)", stockbot.split_hold("trend", pc)[1] == {})
 
 shutil.rmtree(D, ignore_errors=True)
 print("all %d checks passed" % ok)

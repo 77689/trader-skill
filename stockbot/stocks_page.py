@@ -469,7 +469,8 @@ def page(cfg):
         for sym, h in sorted(hold.items(), key=lambda kv: -kv[1]["qty"] * px.get(kv[0], kv[1]["avg"])):
             p = px.get(sym, h["avg"])
             g = (p / h["avg"] - 1) * 100 if h["avg"] else 0
-            held_rows.append(['%s<div class="hs">%s</div>' % (sym_link(sym), e(name)),
+            tag = name + (", idle cash" if name in stockbot.PARKED and sym in stockbot.park_syms(cfg) else "")
+            held_rows.append(['%s<div class="hs">%s</div>' % (sym_link(sym), e(tag)),
                               "$%s" % format(h["qty"] * p, ",.0f"),
                               '%s<div class="hs">%s</div>' % (flash("g-%s-%s" % (name, sym), g, pct(g)),
                                                               money(h["qty"] * p - h["cost"])),

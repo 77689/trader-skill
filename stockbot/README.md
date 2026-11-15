@@ -309,3 +309,13 @@ its own temporary folder with made-up data: no network, no keys, nothing of your
   out of the top 5: 31 of 53 filings since 2013. The bot now asks for exact tickers by CUSIP
   (`--figi`), falls back to names if that service is down, and logs a warning when a position
   bigger than one it kept has no ticker.
+
+### Idle cash (Nov 15 2026)
+
+Swing and breakout sit in cash much of the time (a third and two thirds of their money on an
+average day in the test). That cash now works: it is parked in SPY while SPY is above its 200-day
+average and in BIL (T-bills) otherwise, sold first when a trade needs it, and switched when the
+trend changes. Parked ETFs carry no stop-loss, are not counted as trades on the scorecard, and
+show as "idle cash" on the Stocks tab. In the 2000-2026 test: 7.6% -> 8.8% a year for the five
+price strategies, worst drop -21% -> -22%; all seven since 2013: 10.1% -> 11.7%. Turn it off with
+`"trade_park_idle_cash": false` in ~/stockbot-data/config.json. Only runs in paper_auto mode.

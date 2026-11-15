@@ -150,7 +150,7 @@ def section(e=html.escape):
             'with dates, which start in 2011 and 2013, so they are tested from then.%s '
             'Prices exist for %s%% of the index in 2000, %s%% in 2008 and %s%% in 2015; the missing ones are mostly companies that '
             'failed or were bought, so the early years are probably a little flattering. The Screener test only sees companies that '
-            'still have a ticker today (%s%% of the index in 2011, %s%% now). Unused cash earns nothing here. '
+            'still have a ticker today (%s%% of the index in 2011, %s%% now). Unused cash earns nothing here; since Nov 15 the bot parks Swing and Breakout cash in SPY in uptrends and T-bills otherwise, which in this test lifted the five from 7.6%% to 8.8%% a year (worst drop -21%% to -22%%). '
             'A test of the past is not a promise.</div></section></div>'
             % (BOT, _k(end_b), SPY, _k(end_s), chart(d), format(d["start_usd"], ","), e(d["from"]), _k(end_b), _pc(bot["new"]["per_year"]),
                _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]), "".join(rows), short_html, down, seven,

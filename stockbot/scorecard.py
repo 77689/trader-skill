@@ -35,6 +35,7 @@ def reason(why):
 def closed(ledger=None):
     """Every sale with what it made: [{time, sleeve, symbol, qty, price, avg, usd, pct, days, reason}]."""
     pos, out = {}, []
+    park = stockbot.park_syms(stockbot.config() if ledger is None else stockbot.DEFAULTS)
     for r in (stockbot.ledger() if ledger is None else ledger):
         if r.get("status") not in ("filled", "partially_filled") or r.get("side") not in ("buy", "sell"):
             continue
@@ -63,7 +64,8 @@ def closed(ledger=None):
             days = None
         out.append({"time": str(r.get("time", "")), "sleeve": key[0], "symbol": key[1], "qty": q, "price": px,
                     "avg": avg, "usd": usd, "pct": (px / avg - 1) * 100 if avg else 0.0, "days": days,
-                    "reason": reason(r.get("why"))})
+                    "reason": reason(r.get("why")),
+                    "park": key[0] in stockbot.PARKED and key[1] in park})   # idle cash parked in an ETF, not a trade
     return out
 
 
@@ -73,7 +75,7 @@ def summary(px, ledger=None):
     out = {}
     for name in stockbot.SLEEVES + ("total",):
         mine = [s for s in sales if name == "total" or s["sleeve"] == name]
-        real = [s for s in mine if s["qty"] * s["price"] >= DUST]
+        real = [s for s in mine if s["qty"] * s["price"] >= DUST and not s.get("park")]
         wins, losses = [s for s in real if s["usd"] > 0], [s for s in real if s["usd"] <= 0]
         gw, gl = sum(s["usd"] for s in wins), -sum(s["usd"] for s in losses)
         days = [s["days"] for s in real if s["days"] is not None]
@@ -89,9 +91,10 @@ def summary(px, ledger=None):
     for name in stockbot.SLEEVES:
         hold = stockbot.holdings(name)[0] if ledger is None else {}
         o = sum(h["qty"] * px.get(sym, h["avg"]) - h["cost"] for sym, h in hold.items())
-        out[name]["open"], out[name]["held"] = o, len(hold)
+        n = sum(1 for sym in hold if not (name in stockbot.PARKED and sym in stockbot.park_syms(stockbot.DEFAULTS)))
+        out[name]["open"], out[name]["held"] = o, n          # dollars include parked cash, the count does not
         out["total"]["open"] += o
-        out["total"]["held"] += len(hold)
+        out["total"]["held"] += n
     return out, sales
 
 
@@ -138,7 +141,7 @@ def html(px, e):
                        '<div class="sc-l muted">%s</div>' % line2 if line2 else "", _cls(s["realized"]),
                        _usd(s["realized"]), _cls(s["open"]), _usd(s["open"]), s["held"], "" if s["held"] == 1 else "s",
                        '<div class="sc-x">%s</div>' % e(expect) if expect else ""))
-    last = [s for s in sales if s["qty"] * s["price"] >= DUST][-10:][::-1]
+    last = [s for s in sales if s["qty"] * s["price"] >= DUST and not s.get("park")][-10:][::-1]
     trs = "".join("<tr><td>%s</td><td><a class=\"coin\" href=\"/s?sym=%s\">%s</a><div class=\"muted\">%s</div></td>"
                   "<td><span class=\"%s\">%+.1f%%</span></td><td><span class=\"%s\">%s</span></td><td>%s</td>"
                   "<td>%s</td></tr>"
