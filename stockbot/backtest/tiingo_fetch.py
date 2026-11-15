@@ -45,6 +45,10 @@ class KeyRejected(Exception):
     pass
 
 
+class NetError(Exception):
+    """Tiingo couldn't be reached after a few tries (no signal, Tiingo down): ask again next run."""
+
+
 class Api(object):
     def __init__(self, key, deadline, pause=PAUSE):
         self.key, self.deadline, self.pause, self.last, self.calls = key, deadline, pause, 0.0, 0
@@ -74,7 +78,7 @@ class Api(object):
                 time.sleep(30 * (attempt + 1))
             except Exception:
                 time.sleep(30 * (attempt + 1))
-        return None
+        raise NetError("couldn't reach Tiingo")
 
 
 def read_key():
@@ -96,6 +100,8 @@ def save_key(ask=getpass.getpass, check=True):
         except KeyRejected:
             print("Tiingo rejected that key. Copy it again from your Tiingo account (API > Token) and rerun this. Nothing was saved.")
             return 1
+        except Exception:
+            pass                                    # no signal just now: saved anyway, the fetch checks it again
     fd = os.open(KEYF, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         f.write(k + "\n")
@@ -166,20 +172,27 @@ def main(argv=None):
     todo = [t for t in sorted(targets) if t not in prog["done"]]
     log("asking Tiingo about %d companies (%d done before); one request every %ds, about %.1f hours"
         % (len(todo), len(prog["done"]), PAUSE, len(todo) * PAUSE * (1.1) / 3600))
+    fails = 0
     try:
         for t in todo:
             x = targets[t]
+            tk = urllib.parse.quote(x["tiingo"])
             name, ok = None, None
-            if x.get("check_name"):
-                meta = api.get(API % urllib.parse.quote(x["tiingo"])) or {}
-                name = meta.get("name")
-                ok = same_company(name, x.get("sec_names"))
-                if ok is False:
-                    prog["done"][t] = 0
-                    log("  %-6s skipped: Tiingo's %s is %s, not %s" % (t, x["tiingo"], name, (x.get("sec_names") or ["?"])[0]))
-                    continue
-            q = urllib.parse.urlencode({"startDate": x["start"], "endDate": x["end"], "format": "json"})
-            rows = rows_from(api.get(API % urllib.parse.quote(x["tiingo"]) + "/prices?" + q))
+            try:
+                if x.get("check_name"):
+                    meta = api.get(API % tk)
+                    name = meta.get("name") if isinstance(meta, dict) else None
+                    ok = same_company(name, x.get("sec_names"))
+                q = urllib.parse.urlencode({"startDate": x["start"], "endDate": x["end"], "format": "json"})
+                rows = [] if ok is False else rows_from(api.get(API % tk + "/prices?" + q))
+            except NetError:
+                fails += 1
+                log("  %-6s couldn't reach Tiingo, so it gets asked again next run" % t)
+                if fails >= 3:
+                    log("couldn't reach Tiingo 3 times in a row, so stopping here")
+                    break
+                continue
+            fails = 0
             if rows:
                 json.dump({"ticker": t, "tiingo": x["tiingo"], "name": name, "name_checked": ok, "sec_names": x.get("sec_names"),
                            "need": x["need"], "columns": ["date", "open", "high", "low", "close", "volume", "raw_close",
@@ -187,7 +200,10 @@ def main(argv=None):
                           open(os.path.join(OUT, t + ".json"), "w"), separators=(",", ":"))
             prog["done"][t] = len(rows)
             json.dump(prog, open(prog_f, "w"))
-            log("  %-6s %s" % (t, ("%d days, %s to %s" % (len(rows), rows[0][0], rows[-1][0])) if rows else "nothing came back"))
+            if ok is False:
+                log("  %-6s skipped: Tiingo's %s is %s, not %s" % (t, x["tiingo"], name, (x.get("sec_names") or ["?"])[0]))
+            else:
+                log("  %-6s %s" % (t, ("%d days, %s to %s" % (len(rows), rows[0][0], rows[-1][0])) if rows else "nothing came back"))
     except TimeoutError:
         log("time is up: run the same command again to carry on")
     except KeyboardInterrupt:
