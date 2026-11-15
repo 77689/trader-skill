@@ -133,8 +133,8 @@ def section(e=html.escape):
                     a7["worst_drop"], a7["spy_worst_drop"]))
     brk = ""
     if notes.get("berkshire_no_prices"):
-        brk = (" Berkshire: no prices could be found for %s, about %.0f%% of its top 5 on average, so that part is spread "
-               "over the rest." % (", ".join(e(x) for x in notes["berkshire_no_prices"]), notes.get("berkshire_no_prices_pct", 0)))
+        brk = (" Berkshire: for part of the time there are no prices for %s, about %.0f%% of its top 5 on average, so that "
+               "part is spread over the rest." % (", ".join(e(x) for x in notes["berkshire_no_prices"]), notes.get("berkshire_no_prices_pct", 0)))
     return ('<div class="cgrid"><section><div class="leg bt-leg"><span><i style="background:%s"></i>the bot %s</span>'
             '<span><i style="background:%s"></i>SPY %s</span></div>'
             '<div class="chbox">%s<div class="tip bt-tip"></div></div>'
@@ -148,6 +148,8 @@ def section(e=html.escape):
             '<div class="cap">What this is: the bot\'s own rules replayed day by day, buying at the next open, with trading costs. '
             'Stocks come from the companies that were in the S&amp;P 500 at the time, including ones that later failed or were '
             'bought, not from today\'s winners. "Old settings" is how Swing and Breakout traded before Nov 15.%s%s '
+            'Prices come from Yahoo, the Quandl archive on Kaggle and, for 117 companies, old price files your phone found in '
+            'the Internet Archive (most of those leave out dividends). '
             'Gaps: prices exist for %s%% of the index in 2000, %s%% in 2008 and %s%% in 2015 (the rest are mostly companies '
             'that failed, so the early years are probably a little flattering). The Screener sees %s%% of the index in 2011 and '
             '%s%% in 2019 (prices of companies that closed after March 2018 end there). A test of the past is not a promise.'

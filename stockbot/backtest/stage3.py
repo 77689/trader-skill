@@ -40,11 +40,15 @@ def parked(st):
 
 sched_b, log_b = S2.berkshire_schedule(True)
 brk, kb, nb = S2.simulate(sched_b)
-gone = {"GILLETTE": "Gillette", "WESCO": "Wesco", "BNI": "Burlington Northern"}
-miss = []
+NAMES = {"G~a": "Gillette", "WSC~a": "Wesco", "BNI~a": "Burlington Northern", "GILLETTE": "Gillette", "WESCO": "Wesco", "BNI": "Burlington Northern"}
+miss, gone_set = [], set()
 for f in json.load(open(os.path.join(H, "brk_history_all.json"))):
+    k = max(next((i for i, d in enumerate(CAL) if d > f["filed"]), ND - 1), K0)
     tot = sum(w for _, w in f["weights"])
-    miss.append(sum(w for t, w in f["weights"] if t not in S2.IDX) / tot * 100)
+    bad = [t for t, w in f["weights"] if not (t in S2.IDX and np.isfinite(E.CF[S2.IDX[t], k - 1]) and k - 1 <= E.LAST[S2.IDX[t]])]
+    miss.append(sum(w for t, w in f["weights"] if t in bad) / tot * 100)
+    gone_set |= {NAMES.get(t, t) for t in bad}
+gone = {t: t for t in gone_set}
 print("berkshire from", CAL[kb], "filings", len(log_b), "orders", nb, "| top-5 weight with no prices: avg %.1f%%, max %.0f%%"
       % (np.mean(miss), max(miss)), flush=True)
 

@@ -256,7 +256,7 @@ def berkshire_schedule(corrected=True):
         if k is None:
             continue
         k = max(k, E.K0)                                 # filed before the test starts: held from day one
-        w = {t: wt for t, wt in f["weights"] if t in IDX and np.isfinite(E.CF[IDX[t], k - 1])}
+        w = {t: wt for t, wt in f["weights"] if t in IDX and np.isfinite(E.CF[IDX[t], k - 1]) and k - 1 <= E.LAST[IDX[t]]}
         if len(w) < 3:
             continue
         tot = sum(w.values())
@@ -283,7 +283,7 @@ def simulate(sched, budget=2500.0, band=5.0):
         for t in need:
             o = E.O[IDX[t], k]
             px[t] = float(o) if np.isfinite(o) else float(E.CF[IDX[t], k - 1])
-        w = {t: v for t, v in weights.items() if np.isfinite(px[t]) and px[t] > 0}
+        w = {t: v for t, v in weights.items() if k <= E.LAST[IDX[t]] and np.isfinite(px[t]) and px[t] > 0}   # no buying at a stale price after the data ends
         acct = cash + sum(q * px[t] for t, q in sh.items())
         cfg = {"cash_buffer_pct": 10, "max_position_pct": 40, "max_order_usd": 2000.0 * acct / budget, "min_order_usd": 5,
                "fractional": True}

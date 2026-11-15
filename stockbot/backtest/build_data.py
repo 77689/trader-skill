@@ -113,6 +113,20 @@ def main():
         wcache[name] = idx
         return idx
 
+    acache = {}
+
+    def asec(name):
+        """Prices the phone found in the Internet Archive (cleaned by clean_wayback.py)."""
+        if name in acache:
+            return acache[name]
+        f = os.path.join(H, "wayback_clean", name + ".json")
+        idx = None
+        if os.path.exists(f):
+            rows = json.load(open(f))["rows"]
+            idx = add(name + "~a", [(d, o, h, l, c, v, c) for d, o, h, l, c, v, raw in rows])
+        acache[name] = idx
+        return idx
+
     def span(idx):
         ok = np.where(np.isfinite(data[idx]["c"]))[0]
         return cal[ok[0]], cal[ok[-1]]
@@ -127,8 +141,9 @@ def main():
             cands.append(("w", t.replace(".", "_")))
             if t in WIKI_ALIAS:
                 cands.append(("w", WIKI_ALIAS[t]))
+            cands.append(("a", t))                                  # last resort: the Internet Archive files
             for kind, name in cands:
-                idx = ysec(name) if kind == "y" else wsec(name)
+                idx = ysec(name) if kind == "y" else wsec(name) if kind == "w" else asec(name)
                 if idx is None:
                     continue
                 if idx not in spans:
@@ -140,6 +155,9 @@ def main():
         resolve[mo] = got
     # extras the ETF strategies and benchmarks need
     extra = {}
+    for s in ("G", "WSC", "BNI"):                                   # Berkshire holdings found in the archive
+        if asec(s) is not None:
+            extra[s + "~a"] = acache[s]
     for s in ["SPY", "QQQ", "RSP", "XLK", "XLF", "XLE", "XLV", "XLY", "XLP", "XLI", "XLB", "XLU", "XLRE", "XLC", "EFA", "IEF",
               "GLD", "BIL", "TQQQ", "QLD", "QUAL", "^IRX", "^NDX", "^GSPC", "VFITX", "VGTSX", "FDIVX", "VFISX", "GC=F", "BRK-B"]:
         extra[s] = ysec(s)
@@ -157,7 +175,7 @@ def main():
             continue
         y = mo[:4]
         a = by.setdefault(y, [0, 0, 0])
-        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith("~w"))
+        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a")))
     for y in sorted(by):
         a = by[y]
         print(y, "members %d  covered %.1f%%  (from the Kaggle archive %.1f%%)" % (a[0] // 12, a[1] / a[0] * 100, a[2] / a[0] * 100))

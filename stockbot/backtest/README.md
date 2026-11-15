@@ -34,3 +34,12 @@ months the test has no prices for, plus Gillette, Wesco and Burlington Northern 
 keeps only files whose dates fit the months needed, and saves them to ~/stockbot-data/wayback/,
 from where the stock sync uploads them. Stops after --minutes and carries on when run again.
 Offline tests: `stockbot/tests/test_wayback.py`.
+
+After the phone run (Nov 15 2026): 117 companies with usable files (151,000 trading days).
+`clean_wayback.py` keeps real trading days, drops rows from a different split basis, rescales at
+split jumps (34 splits, five checked by hand: MedImmune, Solectron, 3Com's Palm spin-off, and two
+files that switch to another security part way, Coventry and Titanium Metals), and writes
+wayback_clean/. `build_data.py` uses them as the last price source. Index coverage went from 63%
+to 76% in 2000 and from 88% to 92% in 2008; the results barely moved (six strategies since 2000
+still 8.7% a year, worst drop -28%), which is the useful finding: the earlier numbers were not an
+artifact of the missing companies.

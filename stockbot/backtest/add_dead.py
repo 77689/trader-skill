@@ -105,3 +105,13 @@ for s, rr in rows.items():
             continue
     json.dump({"rows": out, "splits": splits, "name": added[s][1], "type": "EQUITY"}, open(os.path.join(H, "px", s + ".json"), "w"))
 print("price files written for", len(rows), "archive-only companies")
+n = 0
+for s_ in added:
+    if s_.endswith("~a"):
+        src = os.path.join(H, "wayback_clean", s_.split("~")[0] + ".json")
+        if os.path.exists(src):
+            rr = json.load(open(src))["rows"]
+            json.dump({"rows": [[d, o, h, l, raw, c, v] for d, o, h, l, c, v, raw in rr], "splits": [], "name": added[s_][1],
+                       "type": "EQUITY"}, open(os.path.join(H, "px", s_ + ".json"), "w"))
+            n += 1
+print("price files written for", n, "Internet Archive companies")
