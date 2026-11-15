@@ -30,6 +30,7 @@ import statistics
 import time
 
 import scorecard
+import backtest
 import stockbot
 
 UP, DN, GRID, TXT, MUTED = "#26a69a", "#ef5350", "#1f2630", "#c9d1d9", "#7d8590"
@@ -859,6 +860,13 @@ def charts_page(cfg, tabs):
         out.append(scorecard.html(px, e))
     except Exception as ex:                    # the scorecard must never take the page down
         out.append('<div class="ch-empty">scorecard unavailable: %s</div>' % e(str(ex)[:120]))
+    try:
+        bt = backtest.section(e)
+        if bt:
+            out.append("<h2>26-year test (2000 to 2026)</h2>")
+            out.append(bt)
+    except Exception as ex:                    # same for the long test
+        out.append('<div class="ch-empty">26-year test unavailable: %s</div>' % e(str(ex)[:120]))
     held = {}
     for name in stockbot.SLEEVES:
         for sym, h in stockbot.holdings(name)[0].items():

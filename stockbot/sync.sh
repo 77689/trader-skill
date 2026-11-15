@@ -30,7 +30,7 @@ copy() {  # file, destination (inside the work folder)
 pass() {
   setup || return 1
   cd "$WORK" || return 1
-  for f in ledger pending account status state congress news tax alerts_log decisions filings spy qqq qual history stops stopouts swing_signals breakout_signals momentum_plan trend_plan screener_picks news_gate tqqq_plan fast_news; do
+  for f in ledger pending account status state congress news tax alerts_log decisions filings spy qqq qual history stops stopouts swing_signals breakout_signals momentum_plan trend_plan screener_picks news_gate tqqq_plan fast_news market_filter; do
     copy "$DATA/$f.json" "$f.json"
   done
   for s in berkshire screener swing breakout momentum trend tqqq; do
@@ -42,7 +42,8 @@ pass() {
     mkdir -p stock
     sed 's/"sec_user_agent": *"[^"]*"/"sec_user_agent": "(hidden)"/' "$DATA/config.json" > stock/config.json
   fi
-  [ -f "$DATA/stockbot.log" ] && tail -n 300 "$DATA/stockbot.log" > stock/stockbot_log_recent.txt
+  # the last 400 lines that matter: the routine "news: N items" line is left out so trades, errors and restarts stay in view
+  [ -f "$DATA/stockbot.log" ] && grep -v ' news: [0-9]* items on ' "$DATA/stockbot.log" | tail -n 400 > stock/stockbot_log_recent.txt
   git add -A stock
   if ! git diff --cached --quiet; then
     git commit -q -m "stock sync $(date '+%Y-%m-%d %H:%M')"

@@ -12,6 +12,7 @@ sales says nothing; each row is marked "too few to judge" until it has 20.
 
 import datetime
 
+import backtest
 import stockbot
 
 ENOUGH = 20
@@ -129,12 +130,14 @@ def html(px, e):
         else:
             line1, line2, few = "nothing sold yet", "", ""
         tot = s["realized"] + s["open"]
+        expect = "" if name == "total" else backtest.expect(name)      # what the 26-year test says to expect
         rows.append('<div class="sc-r%s"><div class="sc-t"><b>%s</b><span class="%s">%s</span></div>'
                     '<div class="sc-l">%s%s</div>%s<div class="sc-l">banked <span class="%s">%s</span> &middot; '
-                    'open <span class="%s">%s</span> on %d position%s</div></div>'
+                    'open <span class="%s">%s</span> on %d position%s</div>%s</div>'
                     % (" sc-tot" if name == "total" else "", e(label), _cls(tot), _usd(tot), line1, few,
                        '<div class="sc-l muted">%s</div>' % line2 if line2 else "", _cls(s["realized"]),
-                       _usd(s["realized"]), _cls(s["open"]), _usd(s["open"]), s["held"], "" if s["held"] == 1 else "s"))
+                       _usd(s["realized"]), _cls(s["open"]), _usd(s["open"]), s["held"], "" if s["held"] == 1 else "s",
+                       '<div class="sc-x">%s</div>' % e(expect) if expect else ""))
     last = [s for s in sales if s["qty"] * s["price"] >= DUST][-10:][::-1]
     trs = "".join("<tr><td>%s</td><td><a class=\"coin\" href=\"/s?sym=%s\">%s</a><div class=\"muted\">%s</div></td>"
                   "<td><span class=\"%s\">%+.1f%%</span></td><td><span class=\"%s\">%s</span></td><td>%s</td>"
@@ -161,6 +164,7 @@ CSS = """
 .sc-tot .sc-t b { color:#f0b429; }
 .sc-l { color:#c9d1d9; }
 .sc-few { color:#7d8590; font-size:11px; white-space:nowrap; }
+.sc-x { color:#7d8590; font-size:11px; }
 .sc-tb th, .sc-tb td { padding:6px 5px; font-size:11px; vertical-align:top; }
 .sc-tb td div { font-size:10px; }
 """

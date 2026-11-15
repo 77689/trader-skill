@@ -53,9 +53,13 @@ TOOL = {
     "tax": os.path.join(REPO, "trader-tax", "lots.py"),
 }
 
-UNIVERSE = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "AVGO", "ORCL", "CRM", "ADBE",
-            "NFLX", "AMD", "V", "MA", "JPM", "COST", "WMT", "HD", "LLY", "UNH",
-            "XOM", "CVX", "PG", "KO", "PEP", "ABBV", "MRK", "TMO", "CSCO", "INTU"]
+# What swing and breakout scan: the ~100 most-traded S&P 500 stocks (60-day dollar volume, Nov 2026).
+# The 26-year test (stockbot/backtest) used this same rule month by month: the old list of 30 hand-picked
+# giants only looked good because it was made of today's winners. Refresh the list a couple of times a year.
+UNIVERSE = """NVDA MU SNDK TSLA AAPL META AMD MSFT INTC AMZN GOOGL AVGO MRVL PLTR ORCL LITE DELL STX MRNA WDC AMAT LLY LRCX NFLX
+WMT GEV V JPM CRWD XOM CRM COST PANW HOOD CAT BAC QCOM GS COHR UNH KLAC CSCO MA JNJ NOW TXN CVX KO COIN GE HD TMO MRK
+SMCI ADI PG MCD BA APP VRT ABBV GLW PEP UBER BKNG C VLO WFC ACN IBM NKE AMGN ADBE VZ INTU HPE ANET TJX MS CIEN NEE T
+APH MPWR LIN MPC TER MDT PFE SNPS ABT AXP GILD PM COP RTX ISRG BSX""".split()
 
 DEFAULTS = {
     "mode": "paper_auto",          # paper_auto: places paper orders itself
@@ -85,6 +89,8 @@ DEFAULTS = {
     "trade_risk_pct": 1.0,         # swing/breakout: lose at most this % of the sleeve per trade
     "trade_max_position_pct": 25,  # ... and never more than this % of the sleeve in one stock
     "trade_max_positions": 6,
+    "trade_market_filter_days": 200,   # swing/breakout open new trades only while SPY is above this many days' average
+                                   # (0 = off). 26-year test: about halves the worst drop.
     "berkshire_stop_pct": 0,       # off: copying Buffett means holding through drops
     "screener_stop_pct": 0,        # off: research says stops hurt slow quality/value holdings
     "quality_universe": quality.UNIVERSE,
@@ -209,7 +215,8 @@ def run_tool(name, args, cwd, ok_codes=(0,)):
     r = subprocess.run([sys.executable, TOOL[name]] + [str(a) for a in args], cwd=cwd,
                        capture_output=True, text=True, timeout=600)
     if r.returncode not in ok_codes:
-        raise RuntimeError("%s failed (%s): %s" % (name, r.returncode, (r.stderr or r.stdout)[-400:]))
+        lines = [x.strip() for x in (r.stderr or r.stdout or "").splitlines() if x.strip()]
+        raise RuntimeError("%s failed (%s): %s" % (name, r.returncode, (lines[-1] if lines else "no output")[:300]))
     return r.returncode, r.stdout
 
 
@@ -922,6 +929,21 @@ def tqqq(cfg, alpaca, state, is_open):
 
 # ---------- swing and breakout: daily-bar trades with stops ----------
 
+def market_filter(cfg):
+    """Swing and breakout only open NEW trades while SPY is above its N-day average (exits are never
+    blocked). Returns (ok, text). In the 2000-2026 test this roughly halved the worst drop of both."""
+    n = int(cfg.get("trade_market_filter_days") or 0)
+    if n <= 0:
+        return True, ""
+    rows = signals.completed((signals.bars(["SPY"], path("bars"), today()) or {}).get("SPY") or [], today())
+    if len(rows) < n:
+        return True, "not enough SPY history to check, trading allowed"
+    closes = [r[4] for r in rows]
+    sma = sum(closes[-n:]) / n
+    ok = closes[-1] > sma
+    return ok, "SPY %.2f is %s its %d-day average %.2f" % (closes[-1], "above" if ok else "under", n, sma)
+
+
 def trade_sleeve(name, cfg, alpaca, state, is_open):
     budget = cfg[name + "_budget"]
     d = write_sleeve_config(name, cfg, budget)
@@ -930,6 +952,12 @@ def trade_sleeve(name, cfg, alpaca, state, is_open):
     state[name + "_plan"] = today()
     if paused(cfg):
         log(name, "paused today after stop-losses, no new trades")
+        return
+    ok, note = market_filter(cfg)
+    save("market_filter.json", {"time": stamp(), "ok": ok, "note": note, "days": cfg.get("trade_market_filter_days")})
+    if not ok:
+        log(name, "market filter: %s. No new trades today" % note)
+        save(name + "_signals.json", {"time": stamp(), "signals": [], "blocked": note})
         return
     hold, realized = holdings(name)
     slots = cfg["trade_max_positions"] - len(hold)
@@ -1270,7 +1298,9 @@ def news(cfg, state):
     state["red_seen"] = sorted(seen)[-300:]
     state["news_check"] = time.time()
     flagged = [i for i in items if i.get("tags")]
-    log("news: %d items on %d stocks, %d flagged" % (len(items), len(syms), len(flagged)))
+    if time.time() - state.get("news_logged", 0) > 2 * 3600:
+        log("news: %d items on %d stocks, %d flagged" % (len(items), len(syms), len(flagged)))
+        state["news_logged"] = time.time()
 
 
 def tax(cfg):

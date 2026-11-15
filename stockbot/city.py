@@ -334,7 +334,7 @@ D.sleeves.forEach((s, i) => {
   const beam = beamMesh(GREEN, 60, 0.3, 0); beam.visible = false; g.add(beam);
   const lbl = document.createElement('div'); lbl.className = 'lbl tap'; document.body.appendChild(lbl);
   pad.userData = { district: s.name };
-  const dd = { s, g, pad, edge, beam, lbl, angle: a, buildings: {} };
+  const dd = { s, g, pad, edge, beam, lbl, angle: a, buildings: {}, top: 3 };
   lbl.addEventListener('click', () => openSleeve(dd));
   districts.push(dd);
 });
@@ -359,6 +359,7 @@ function layout(d) {
     const x = (c - (cols - 1) / 2) * gap, z = (r - (Math.ceil(n / cols) - 1) / 2) * gap;
     const h = 1.5 + 13 * Math.sqrt(p.cost / maxCost);
     Object.assign(b, { p, x, z, h, w });
+    d.top = Math.max(k ? d.top : 3, h);
     b.m.material.map.repeat.set(1, Math.max(1, Math.round(h / 4.5)));
     b.m.position.set(x, 0, z); b.cap.position.set(x, 0, z); b.cap.scale.set(w, 1, w);
   });
@@ -648,7 +649,7 @@ $('glow').onclick = () => setGlow(!glow);
 $('home').onclick = () => { if (P.open) return closePanel(); fly = null; camera.position.copy(HOME); controls.target.set(0, 3, -5); controls.autoRotate = true; };
 
 // ---------- labels follow the 3D world ----------
-const tmp = new THREE.Vector3();
+const tmp = new THREE.Vector3(), tA = new THREE.Vector3(), tB = new THREE.Vector3(), camDir = new THREE.Vector3();
 let topY = 0, botY = innerHeight;
 function bounds() { topY = document.querySelector('.top').getBoundingClientRect().bottom + 4;
   botY = (P.open ? $('panel') : document.querySelector('.chart')).getBoundingClientRect().top - 4;
@@ -694,6 +695,7 @@ function frame(now) {
   if (replaying && rp && !rp.done) stepReplay(now);
   if (P.open) drawPanel(now);
   traffic.rotation.y -= dt * 0.12; vaultBeam.material.opacity = 0.3 + Math.sin(t * 2) * 0.06; placed.length = 0;
+  camDir.set(controls.target.x - camera.position.x, 0, controls.target.z - camera.position.z).normalize();
   districts.forEach(d => {
     d.beam.material.opacity = (d.pulse || 0) * 0.45; d.beam.visible = d.pulse > 0.01;
     d.pulse = Math.max(0, (d.pulse || 0) - dt * 0.6);
@@ -705,7 +707,12 @@ function frame(now) {
       b.m.scale.set(b.w, gh, b.w); b.cap.position.y = gh; b.cap.visible = gh > 0.05;
       if (b.flash > 0) { b.flash = Math.max(0, b.flash - dt * 1.5); b.m.material.color.copy(b.base).multiplyScalar(1 + b.flash * 1.6); }
     }
-    place(d.lbl, tmp.set(0, 0, 0).add(d.g.position).setY(17), 0, 'x');
+    // the name tag stays off the towers: under the pad for districts on the near side, above the roofs for the far side
+    const depth = d.g.position.x * camDir.x + d.g.position.z * camDir.z;
+    const f = Math.min(1, Math.max(0, (depth + 3) / 10)), kk = f * f * (3 - 2 * f);
+    tA.set(d.g.position.x - camDir.x * 7.6, 0.2, d.g.position.z - camDir.z * 7.6);
+    tB.set(d.g.position.x, d.top + 2.5, d.g.position.z);
+    place(d.lbl, tA.lerp(tB, kk), (1 - kk) * ((d.lbl.offsetHeight || 34) + 6), 'x');
   });
   place(vlbl, new THREE.Vector3(0, 9, 0), 0);
   for (let i = fx.length - 1; i >= 0; i--) {

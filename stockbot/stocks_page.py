@@ -15,6 +15,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
+import backtest  # noqa: E402
 import charts  # noqa: E402
 import city  # noqa: E402
 import fastnews  # noqa: E402
@@ -24,9 +25,21 @@ import scorecard  # noqa: E402
 EXTRA = """
 .nwrap td:last-child { white-space:normal; line-height:1.35; }
 .nwrap td { vertical-align:top; }
-.tabs { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 12px; }
-.tabs a { padding:6px 10px; border-radius:8px; background:#161b22; border:1px solid #30363d;
-          color:#8b949e; text-decoration:none; font-size:14px; white-space:nowrap; }
+.tabs { display:flex; flex-wrap:nowrap; gap:4px; margin:2px 0 12px; overflow-x:auto; scrollbar-width:none; }
+.tabs::-webkit-scrollbar { display:none; }
+.tabs a { padding:6px 7px; border-radius:8px; background:#161b22; border:1px solid #30363d; flex:none;
+          color:#8b949e; text-decoration:none; font-size:13px; white-space:nowrap; }
+details.sec { margin-top:14px; }
+details.sec > summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+          gap:8px; font-size:15px; font-weight:600; color:#c9d1d9; padding:10px 12px; background:#161b22;
+          border:1px solid #30363d; border-radius:10px; -webkit-tap-highlight-color:transparent; }
+details.sec > summary::-webkit-details-marker { display:none; }
+details.sec > summary::after { content:"+"; color:#8b949e; font-weight:400; font-size:18px; line-height:1; }
+details.sec[open] > summary { background:none; border-color:transparent; padding:6px 2px; margin-bottom:2px; }
+details.sec[open] > summary::after { content:"−"; }
+.hs { font-size:11px; color:#8b949e; font-weight:400; margin-top:1px; }
+.hs a { color:inherit; }
+.tight td, .tight th { padding:7px 6px; }
 .tabs a.on { color:#e6e6e6; border-color:#58a6ff; }
 .why { color:#8b949e; font-size:12px; white-space:normal; min-width:180px; }
 .lg { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
@@ -34,7 +47,8 @@ EXTRA = """
       vertical-align:middle; overflow:hidden; flex:none; }
 a.coin { display:inline-flex; align-items:center; }
 .lg img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; padding:2px;
-          box-sizing:border-box; }
+          box-sizing:border-box; opacity:0; transition:opacity .25s; }
+.lg img.in { opacity:1; }
 .lgs .lg { margin:0 0 0 -4px; border:1px solid #161b22; }
 .cd { font-size:12px; color:#8b949e; font-weight:400; margin-top:2px; font-variant-numeric:tabular-nums; }
 .fl { border-radius:4px; transition:background 1.5s; }
@@ -192,11 +206,11 @@ def filings_page(cfg):
         stock = sym_link(it["ticker"]) if it.get("ticker") else e(it.get("issuer", ""))[:24]
         new = ' <span class="bad">new</span>' if it.get("fresh") and it.get("filed", "") >= time.strftime(
             "%Y-%m-%d", time.localtime(time.time() - 3 * 86400)) else ""
-        rows.append([e(it["filed"]), e(it["who"])[:18], '<span class="%s">%s</span>' % (cls, e(it["form"])),
-                     stock, e(it.get("summary", ""))[:110] + new,
-                     '<a class="coin" href="%s">open</a>' % e(it["link"])])
-    out.append(table(["filed", "who", "form", "stock", "what", "filing"], rows,
-                     "nothing yet. The bot checks every 30 minutes."))
+        rows.append(['%s<div class="hs">%s</div>' % (e(it["filed"][5:]), e(it["who"])[:18]),
+                     '<span class="%s">%s</span><div class="hs">%s</div>' % (cls, e(it["form"])[:14], stock or "&nbsp;"),
+                     '%s%s <a class="coin" href="%s">open</a>' % (e(it.get("summary", ""))[:110] or "no summary", new,
+                                                                e(it["link"]))])
+    out.append(table(["filed", "form", "what"], rows, "nothing yet. The bot checks every 30 minutes.", "nwrap tight"))
     return out
 
 
@@ -249,7 +263,7 @@ LOGO = "https://financialmodelingprep.com/image-stock/%s.png"
 
 
 def logo(sym):
-    return ('<span class="lg">%s<img src="%s" loading="lazy" alt="" onerror="this.remove()"></span>'
+    return ('<span class="lg">%s<img src="%s" loading="lazy" alt="" onload="this.className=\'in\'" onerror="this.remove()"></span>'
             % (e(sym[:1]), e(LOGO % sym.replace(".", "-"))))
 
 
@@ -377,8 +391,44 @@ SCRIPT = """<script>
     });
   }
   tick(); setInterval(tick, 1000);
+  var st = {};
+  try { st = JSON.parse(localStorage.getItem('sec') || '{}'); } catch (x) {}
+  document.querySelectorAll('details.sec').forEach(function(d){
+    var k = d.dataset.k;
+    if (k in st) d.open = !!st[k];
+    d.addEventListener('toggle', function(){
+      st[k] = d.open ? 1 : 0;
+      try { localStorage.setItem('sec', JSON.stringify(st)); } catch (x) {}
+    });
+  });
+  var sk = 'sy' + location.pathname;
+  try {
+    var y = JSON.parse(sessionStorage.getItem(sk) || 'null');
+    if (y && Date.now() - y[1] < 4000) scrollTo(0, y[0]);          // only right after the page refreshed itself
+  } catch (x) {}
+  addEventListener('pagehide', function(){
+    try { sessionStorage.setItem(sk, JSON.stringify([scrollY, Date.now()])); } catch (x) {}
+  });
 })();
 </script>"""
+
+
+SHUT = ("momentum picks", "trend signals", "tqqq", "berkshire targets", "screener", "congress", "sec filings",
+        "alpaca news", "yahoo headlines", "news check", "tax", "price alerts")
+
+
+def fold(parts):
+    """Every <h2> and what follows it becomes a section that taps open and shut. The long,
+    rarely-read ones start shut; the browser remembers what you opened (see SCRIPT)."""
+    bits = re.split(r"<h2>(.*?)</h2>", "".join(parts))
+    out = [bits[0]]
+    for title, body in zip(bits[1::2], bits[2::2]):
+        plain = html.unescape(re.sub(r"<[^>]+>", "", title)).lower()
+        key = re.sub(r"[^a-z]+", "-", plain.split("(")[0].split(":")[0]).strip("-")
+        shut = plain.startswith(SHUT) or (key == "errors" and "none in the last cycle" in body)
+        out.append('<details class="sec" data-k="%s"%s><summary>%s</summary>%s</details>'
+                   % (key, "" if shut else " open", title, body))
+    return out
 
 
 def page(cfg):
@@ -419,9 +469,11 @@ def page(cfg):
         for sym, h in sorted(hold.items(), key=lambda kv: -kv[1]["qty"] * px.get(kv[0], kv[1]["avg"])):
             p = px.get(sym, h["avg"])
             g = (p / h["avg"] - 1) * 100 if h["avg"] else 0
-            held_rows.append([name, sym_link(sym), "%.3f" % h["qty"], "%.2f" % h["avg"],
-                              flash("p-%s-%s" % (name, sym), p, "%.2f" % p),
-                              "$%.0f" % (h["qty"] * p), flash("g-%s-%s" % (name, sym), g, pct(g))])
+            held_rows.append(['%s<div class="hs">%s</div>' % (sym_link(sym), e(name)),
+                              "$%s" % format(h["qty"] * p, ",.0f"),
+                              '%s<div class="hs">%s</div>' % (flash("g-%s-%s" % (name, sym), g, pct(g)),
+                                                              money(h["qty"] * p - h["cost"])),
+                              flash("p-%s-%s" % (name, sym), p, "%.2f" % p), "%.2f" % h["avg"], "%.3f" % h["qty"]])
     day = time.strftime("%Y-%m-%d")
     placed_today = sum(1 for o in orders if str(o.get("time", "")).startswith(day) and o.get("status") != "dry_run")
     keys = account.get("keys")
@@ -472,7 +524,7 @@ def page(cfg):
         out.append('<div class="note muted">go-live checklist unavailable: %s</div>' % e(str(ex)[:120]))
 
     out.append("<h2>Holdings</h2>")
-    out.append(table(["sleeve", "stock", "shares", "avg", "now", "value", "P&L"], held_rows, "no holdings yet"))
+    out.append(table(["stock", "value", "gain", "now", "cost", "shares"], held_rows, "no holdings yet", "tight"))
 
     # stops and targets on every position
     st, rows = stockbot.load("stops.json", {}), []
@@ -486,16 +538,16 @@ def page(cfg):
             tgt = h["avg"] + x["target_r"] * x["r"] if x.get("target_r") and x.get("r") else None
             kind = {"fixed": "fixed %d%% under cost" % cfg.get(name + "_stop_pct", 15), "be1r": "to cost at +1R",
                     "trail10": "trails 10-day low"}.get(x.get("rule"), x.get("rule", ""))
-            rows.append([name, sym_link(sym), range_bar(x["stop"], h["avg"], p, tgt),
-                         '<span class="bad">%.2f</span>' % x["stop"],
-                         '<span class="ok">%.2f</span>' % tgt if tgt else '<span class="muted">-</span>',
+            rows.append(['%s<div class="hs">%s</div>' % (sym_link(sym), e(name)), range_bar(x["stop"], h["avg"], p, tgt),
+                         '<span class="bad">%.2f</span><div class="hs">%s</div>'
+                         % (x["stop"], '<span class="ok">%.2f</span>' % tgt if tgt else "no target"),
                          '<span class="why">%s</span>' % e(kind)])
     out.append("<h2>Stops &amp; targets</h2>")
     paused = stockbot.paused(cfg)
     if paused:
         out.append('<div class="note bad">2 stop-losses hit today: no new buys until tomorrow.</div>')
-    out.append(table(["sleeve", "stock", "stop &larr; now &rarr; target", "stop", "target", "rule"], rows,
-                     "no positions yet"))
+    out.append(table(["stock", "stop &larr; now &rarr; target", "stop / tgt", "rule"], rows,
+                     "no positions yet", "tight"))
     hits = [x for x in stockbot.load("stopouts.json", []) if x.get("time", "")[:10] >= time.strftime(
         "%Y-%m-%d", time.localtime(time.time() - 14 * 86400))]
     if hits:
@@ -510,7 +562,13 @@ def page(cfg):
         rows = [[sym_link(c["symbol"]), "%.2f" % c["stop"], '<span class="why">%s</span>' % e(c["why"])]
                 for c in sg.get("signals", [])]
         out.append("<h2>%s</h2>" % title)
+        mf = stockbot.load("market_filter.json", {})
+        if mf.get("note"):
+            out.append('<div class="note %s" style="margin:0 0 6px">market filter: %s%s</div>'
+                       % ("muted" if mf.get("ok") else "bad", e(mf["note"]),
+                          ", so new buys are allowed" if mf.get("ok") else ". No new buys until it is back above"))
         out.append(table(["stock", "stop", "why"], rows,
+                         "the market filter is holding new buys" if sg.get("blocked") else
                          "no setups %s" % ("on " + e(sg["time"][:10]) if sg.get("time") else "checked yet")))
 
     # monthly ETF sleeves
@@ -588,11 +646,12 @@ def page(cfg):
     rows = []
     for o in reversed(orders[-15:]):
         side = o.get("side", "")
-        rows.append([e(o.get("time", ""))[5:16], e(o.get("sleeve", "")),
-                     '<span class="%s">%s</span>' % ("pos" if side == "buy" else "neg", e(side)),
-                     sym_link(o.get("symbol", "")), amount(o), e(o.get("status", ""))])
+        rows.append(['%s<div class="hs">%s</div>' % (e(o.get("time", ""))[5:16], e(o.get("sleeve", ""))),
+                     '<span class="%s" style="margin-right:6px">%s</span>%s'
+                     % ("pos" if side == "buy" else "neg", e(side), sym_link(o.get("symbol", ""))),
+                     amount(o), e(o.get("status", ""))])
     out.append("<h2>Last 15 orders</h2>")
-    out.append(table(["time", "sleeve", "side", "stock", "amount", "status"], rows, "no orders yet"))
+    out.append(table(["time", "order", "amount", "status"], rows, "no orders yet", "tight"))
 
     # congress
     rows = []
@@ -756,9 +815,9 @@ def render(pathname, query, css):
         body = stock_page((query.get("sym") or [""])[0], (query.get("r") or [""])[0])
         refresh = ""
     else:
-        body = page(cfg)
+        body = fold(page(cfg))
         refresh = "<meta http-equiv='refresh' content='30'>"
     return ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>" + refresh +
-            "<title>stocks</title><style>" + css + EXTRA + charts.CSS + golive.CSS + scorecard.CSS + "</style></head><body>" + "".join(body) +
-            SCRIPT + charts.JS + "</body></html>")
+            "<title>stocks</title><style>" + css + EXTRA + charts.CSS + golive.CSS + scorecard.CSS + backtest.CSS + "</style></head><body>" + "".join(body) +
+            SCRIPT + charts.JS + backtest.JS + "</body></html>")

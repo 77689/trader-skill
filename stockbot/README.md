@@ -266,3 +266,24 @@ line. Prices refresh every 10 s and trades every 20 s. Read-only.
 
 It uses three.js from a CDN, so the first load needs internet. If the phone
 is slow the glow turns itself off (the "glow" button turns it back on).
+
+## Nov 15 2026 upgrade: what changed and why
+
+- **26-year test** (`stockbot/backtest/`, results in `backtest.json`, shown on the Charts tab): the
+  bot's rules replayed from 2000 to 2026 on the companies that were in the S&P 500 at the time
+  (member list from fja05680/sp500, prices from Yahoo plus the Quandl WIKI archive for dead
+  companies). Five of the seven strategies; Screener and Berkshire are not in it yet.
+- **Swing and breakout now scan about 100 stocks** (the most-traded S&P 500 names) instead of 30
+  hand-picked giants, and **open new trades only while SPY is above its 200-day average**
+  (`trade_market_filter_days`, 0 turns it off; exits are never blocked). In the test this took
+  swing from -1.8% to +5.8% a year and its worst drop from -71% to -34%; the five strategies
+  together from 5.6% to 7.6% a year. SPY made 8.2% with a -55% drop.
+- **Stays running**: `run.sh` restarts the bot if it crashes or is killed, and `keepalive.sh`
+  is run by Android every 15 minutes and after a reboot (needs the Termux:API app).
+  `stop.sh` turns both off.
+- **Stocks tab**: tabs fit one line, sections fold (the page remembers which are open and keeps
+  its place when it refreshes), holdings show value and gain first, orders and filings fit a phone.
+- **Charts tab**: the 26-year test panel, and each strategy's scorecard row says what the test
+  expects from it.
+- **City**: name tags stay off the towers.
+- The log no longer fills with the routine news line, and tool errors are one readable line.
