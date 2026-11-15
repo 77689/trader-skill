@@ -82,19 +82,34 @@ def data():
                        "x": _x(o.get("time")), "sleeve": o.get("sleeve"), "sym": o.get("symbol"), "side": o.get("side"),
                        "usd": round(usd, 2), "pnl": round(s["usd"], 2) if s else None,
                        "reason": s["reason"] if s else None})
-    hist = charts.dollars(stockbot.load("history.json", []))
+    raw = [p for p in stockbot.load("history.json", []) if float(p.get("in") or 0) > 0 and p.get("t")]
+    hist = charts.dollars(raw)
     step = max(1, len(hist) // 400)
-    keep = hist[::step] + ([hist[-1]] if hist and (len(hist) - 1) % step else [])
+    idx = list(range(0, len(hist), step)) + ([len(hist) - 1] if hist and (len(hist) - 1) % step else [])
+    keep = [hist[i] for i in idx]
+    lines = {n: [raw[i].get(n) for i in idx] for n in stockbot.SLEEVES}       # each strategy's % on its own money
     days = charts.periods(hist, 10)[-10:]
     live = stockbot.load("live.json", {})
     return {"time": stockbot.stamp(), "session": live.get("session"), "net_in": round(net_in, 2),
             "spy_sh": spy_sh, "qqq_sh": qqq_sh, "spy": px.get("SPY"), "qqq": px.get("QQQ"),
             "start": led[0]["time"][:10] if led else None, "sleeves": sleeves, "events": events[-120:],
             "hist": [[p["t"], _x(p["t"]), round(p["bot"], 2), round(p["spy"], 2)] for p in keep],
-            "days": [[d["key"], round(d["bot"], 2)] for d in days]}
+            "days": [[d["key"], round(d["bot"], 2)] for d in days], "lines": lines}
+
+
+def stock(sym):
+    """One stock for the tap-a-building panel: ~4 months of daily closes, your fills and your levels."""
+    rows = charts.bars(sym)[-90:]
+    levels, marks, sleeves = charts.levels_for(sym)
+    first = rows[0][0] if rows else ""
+    return {"sym": sym, "sleeves": sleeves, "rows": [[r[0], round(r[4], 2)] for r in rows],
+            "marks": [{"day": m["day"], "side": m["side"], "price": round(m["price"], 2), "qty": round(m["qty"], 4),
+                       "sleeves": m["sleeves"]} for m in marks if m["day"] >= first],
+            "levels": [[round(p, 2), label] for p, label, _ in levels if p]}
 
 
 def page(tabs_html):
+    """The City tab."""
     first = charts._json(data())
     return (PAGE.replace("@TABS@", tabs_html).replace("@DATA@", first).replace("@THREE@", THREE))
 
@@ -143,6 +158,18 @@ button.pill { cursor:pointer; } button.pill.on { border-color:#f0b429; color:#f0
   background:#0b0f14f2; border:1px solid #58a6ff; border-radius:10px; padding:10px 12px; display:none;
   font:12px/1.5 ui-monospace, Menlo, monospace; }
 .card a { color:#58a6ff; }
+.panel { position:fixed; left:6px; right:6px; bottom:6px; height:46vh; min-height:250px; z-index:8; display:none;
+  background:#0b0f14f5; border:1px solid #58a6ff; border-radius:12px; padding:8px 10px; box-sizing:border-box;
+  font:11px/1.4 ui-monospace, Menlo, monospace; flex-direction:column; box-shadow:0 0 24px #58a6ff40; }
+.panel .ph { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+.panel .ph b { font-size:14px; letter-spacing:.05em; text-transform:uppercase; }
+.panel .ph .x { font-size:18px; line-height:1; padding:2px 8px; cursor:pointer; color:#8b949e; border:1px solid #30363d;
+  border-radius:6px; background:none; }
+.panel .tape { min-height:16px; margin:4px 0 2px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.panel canvas { flex:1; width:100%; min-height:0; display:block; }
+.panel .pf { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:4px; color:#8b949e; }
+.panel .pf a { color:#58a6ff; }
+.lbl.tap { pointer-events:auto; cursor:pointer; }
 .err { position:fixed; inset:120px 20px auto; z-index:9; text-align:center; color:#c9d1d9; display:none;
   font:14px/1.5 -apple-system, sans-serif; }
 </style>
@@ -156,6 +183,9 @@ button.pill { cursor:pointer; } button.pill.on { border-color:#f0b429; color:#f0
 <button class="pill" id="home">reset view</button><span class="pill days" id="days"></span></div></div>
 <div class="chart"><canvas id="ch"></canvas><div class="k" id="chk">bot vs same money in SPY</div></div>
 <div class="card" id="card"></div>
+<div class="panel" id="panel"><div class="ph"><div><b id="pt"></b> <span class="m" id="ps"></span><div id="pv"></div></div>
+<button class="x" id="px">&times;</button></div><div class="tape" id="ptape"></div><canvas id="pc"></canvas>
+<div class="pf"><button class="pill" id="pr">&#9654; replay</button><span id="pk"></span><a id="pl" href="#"></a></div></div>
 <div class="err" id="err">The 3D view couldn't start. It needs internet the first time (for the 3D library) and a
 browser with WebGL. Everything else is on the Stocks and Charts tabs.</div>
 <script type="application/json" id="d0">@DATA@</script>
@@ -281,8 +311,11 @@ D.sleeves.forEach((s, i) => {
     transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
   edge.rotation.x = -Math.PI / 2; edge.position.y = 0.08; g.add(edge);
   const beam = beamMesh(GREEN, 120, 0.22, 0.45); g.add(beam);
-  const lbl = document.createElement('div'); lbl.className = 'lbl'; document.body.appendChild(lbl);
-  districts.push({ s, g, pad, edge, beam, lbl, angle: a, buildings: {} });
+  const lbl = document.createElement('div'); lbl.className = 'lbl tap'; document.body.appendChild(lbl);
+  pad.userData = { district: s.name };
+  const dd = { s, g, pad, edge, beam, lbl, angle: a, buildings: {} };
+  lbl.addEventListener('click', () => openSleeve(dd));
+  districts.push(dd);
 });
 const bGeo = new THREE.BoxGeometry(1, 1, 1); bGeo.translate(0, 0.5, 0);
 function layout(d) {
@@ -481,28 +514,122 @@ canvas.addEventListener('pointerup', e => {
   if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 8) return;
   ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera);
   const hits = ray.intersectObjects(districts.flatMap(d => Object.values(d.buildings).map(b => b.m)));
-  const card = $('card');
-  if (!hits.length) { card.style.display = 'none'; return; }
-  const u = hits[0].object.userData, d = districts.find(x => x.s.name === u.sleeve), b = d.buildings[u.sym], p = b.p;
-  const val = price(p) * p.qty, g = val - p.cost;
-  card.innerHTML = '';
-  const t = document.createElement('div'); t.innerHTML = '<b></b> <span class="m"></span>';
-  t.firstChild.textContent = u.sym; t.lastChild.textContent = d.s.label;
-  const l1 = document.createElement('div'); l1.textContent = (+p.qty.toFixed(4)) + ' shares @ $' + price(p).toFixed(2) + ' = $' + val.toFixed(2);
-  const l2 = document.createElement('div'); l2.className = g >= 0 ? 'g' : 'r';
-  l2.textContent = money(g) + ' (' + pct(p.cost ? g / p.cost * 100 : 0) + ') on $' + p.cost.toFixed(2);
-  const a = document.createElement('a'); a.href = '/s?sym=' + encodeURIComponent(u.sym); a.textContent = 'open chart →';
-  card.append(t, l1, l2, a); card.style.display = 'block';
-  b.flash = 1;
+  if (hits.length) {
+    const u = hits[0].object.userData, d = districts.find(x => x.s.name === u.sleeve);
+    d.buildings[u.sym].flash = 1; return openStock(d, u.sym);
+  }
+  const pads = ray.intersectObjects(districts.map(d => d.pad));
+  if (pads.length) return openSleeve(districts.find(d => d.s.name === pads[0].object.userData.district));
+  closePanel();
 });
+
+// ---------- the panel: watch a strategy (or one stock) trade ----------
+const P = { open: false, kind: null, pts: [], marks: [], levels: [], t0: 0, prog: 1, unit: '%' };
+const pc = $('pc'), pg = pc.getContext('2d');
+let fly = null;
+function flyTo(pos, target) { fly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: target, t: 0 }; controls.autoRotate = false; clearTimeout(window._ar); }
+function focus(d) {
+  const o = d.g.position, out = o.clone().setY(0).normalize();
+  flyTo(new THREE.Vector3(o.x + out.x * 20, 26, o.z + out.z * 20 + 4), new THREE.Vector3(o.x, -6, o.z));
+}
+function showPanel() { P.open = true; $('panel').style.display = 'flex'; $('card').style.display = 'none';
+  document.querySelector('.chart').style.display = 'none'; bounds(); playPanel(); }
+function closePanel() {
+  if (!P.open) return; P.open = false; $('panel').style.display = 'none'; document.querySelector('.chart').style.display = 'block';
+  bounds(); drawChart(); flyTo(HOME.clone(), new THREE.Vector3(0, 3, -5)); setTimeout(() => { if (!P.open) controls.autoRotate = true; }, 1500);
+}
+function playPanel() { P.t0 = performance.now(); P.prog = 0; P.last = -1; $('ptape').textContent = ''; }
+$('px').onclick = closePanel; $('pr').onclick = playPanel;
+function evText(e) {
+  if (e.side === 'buy') return ['▲ BOUGHT ' + e.sym + '  $' + Math.round(e.usd).toLocaleString(), 'c'];
+  const p = e.pnl || 0, stop = e.reason === 'stop';
+  return ['▼ ' + (stop ? 'STOPPED OUT ' : p > 0 ? 'PROFIT LOCKED ' : 'SOLD ') + e.sym + '  ' + money(p), stop || p < 0 ? 'r' : 'g'];
+}
+function openSleeve(d) {
+  const line = (D.lines || {})[d.s.name] || [], H = D.hist;
+  P.kind = 'sleeve'; P.unit = '%'; P.levels = [];
+  P.pts = []; H.forEach((h, i) => { if (line[i] !== null && line[i] !== undefined) P.pts.push({ x: i, v: line[i], t: h[0].slice(5, 16) }); });
+  const evs = D.events.filter(e => e.sleeve === d.s.name && e.x !== null);
+  P.marks = evs.map(e => { const [text, cls] = evText(e); return { x: idxOf(e.x), side: e.side, cls, text: e.t.slice(5, 16) + '  ' + text }; });
+  const n = sleeveNums(d);
+  $('pt').textContent = d.s.label; $('ps').textContent = 'bot trading · ' + evs.length + ' trade' + (evs.length === 1 ? '' : 's');
+  $('pv').className = n.total > 0.005 ? 'g' : n.total < -0.005 ? 'r' : 'm';
+  $('pv').textContent = money(n.total) + ' total · banked ' + money(d.s.realized) + ' · open ' + money(n.open);
+  $('pk').textContent = d.s.pos.length ? d.s.pos.map(p => p.sym).join(' ') : 'holding nothing, waiting for a setup';
+  $('pl').textContent = ''; $('pl').removeAttribute('href');
+  focus(d); showPanel();
+}
+async function openStock(d, sym) {
+  const p = d.buildings[sym].p, val = price(p) * p.qty, g = val - p.cost;
+  P.kind = 'stock'; P.unit = '$'; P.pts = []; P.marks = []; P.levels = [];
+  $('pt').textContent = sym; $('ps').textContent = d.s.label + ' · loading';
+  $('pv').className = g >= 0 ? 'g' : 'r';
+  $('pv').textContent = money(g) + ' (' + pct(p.cost ? g / p.cost * 100 : 0) + ') · ' + (+p.qty.toFixed(3)) + ' sh @ $' + price(p).toFixed(2);
+  $('pk').textContent = 'daily closes, about 4 months'; $('pl').textContent = 'full chart →'; $('pl').href = '/s?sym=' + encodeURIComponent(sym);
+  focus(d); showPanel();
+  try {
+    const r = await fetch('/city.json?sym=' + encodeURIComponent(sym), { cache: 'no-store' }); const k = await r.json();
+    if (!P.open || $('pt').textContent !== sym) return;
+    P.pts = k.rows.map((row, i) => ({ x: i, v: row[1], t: row[0].slice(5) }));
+    if (P.pts.length && PX[sym]) P.pts[P.pts.length - 1].v = PX[sym];
+    P.marks = k.marks.map(m => { let i = k.rows.findIndex(row => row[0] >= m.day); if (i < 0) i = k.rows.length - 1;
+      return { x: i, side: m.side, v: m.price, cls: m.side === 'buy' ? 'c' : 'g',
+        text: m.day.slice(5) + '  ' + (m.side === 'buy' ? '▲ BOUGHT ' : '▼ SOLD ') + (+m.qty.toFixed(3)) + ' @ $' + m.price.toFixed(2) + ' (' + m.sleeves.join(', ') + ')' }; });
+    P.levels = k.levels;
+    $('ps').textContent = d.s.label + ' · ' + P.marks.length + ' trade' + (P.marks.length === 1 ? '' : 's') + ' on this chart';
+    playPanel();
+  } catch (e) { $('ps').textContent = d.s.label + ' · chart not available'; }
+}
+function drawPanel(now) {
+  const w = pc.clientWidth, h = pc.clientHeight, r = Math.min(devicePixelRatio, 2);
+  if (!w || !h) return;
+  if (pc.width !== Math.round(w * r) || pc.height !== Math.round(h * r)) { pc.width = Math.round(w * r); pc.height = Math.round(h * r); }
+  pg.setTransform(r, 0, 0, r, 0, 0); pg.clearRect(0, 0, w, h); pg.font = '10px ui-monospace, Menlo, monospace';
+  const pts = P.pts;
+  if (pts.length < 2) { pg.fillStyle = '#8b949e'; pg.fillText(P.kind === 'stock' ? 'loading the chart' : 'no history for this strategy yet', 8, h / 2); return; }
+  P.prog = Math.max(0, Math.min(1, (now - P.t0) / 6000));
+  const x0 = pts[0].x, x1 = pts[pts.length - 1].x, vals = pts.map(p => p.v).concat(P.marks.filter(m => m.v).map(m => m.v))
+    .concat(P.unit === '%' ? [0] : P.levels.map(l => l[0]).filter(v => v > Math.min(...pts.map(p => p.v)) * 0.9 && v < Math.max(...pts.map(p => p.v)) * 1.1));
+  let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad;
+  const R = 52, X = x => 4 + (Math.min(Math.max(x, x0), x1) - x0) / Math.max(1e-9, x1 - x0) * (w - R - 8), Y = v => 6 + (hi - v) / (hi - lo) * (h - 22);
+  const fmt = v => P.unit === '%' ? pct(v) : '$' + v.toFixed(2);
+  pg.strokeStyle = '#1f2630'; pg.fillStyle = '#7d8590'; pg.lineWidth = 1;
+  for (let k = 0; k <= 3; k++) { const v = lo + (hi - lo) * k / 3, y = Y(v); pg.beginPath(); pg.moveTo(4, y); pg.lineTo(w - R, y); pg.stroke(); pg.fillText(fmt(v), w - R + 4, y + 3); }
+  if (P.unit === '%') { pg.strokeStyle = '#3d444d'; pg.beginPath(); pg.moveTo(4, Y(0)); pg.lineTo(w - R, Y(0)); pg.stroke(); }
+  P.levels.forEach(([v, label]) => { if (v <= lo || v >= hi) return; pg.strokeStyle = label === 'stop' ? '#ff3b5c' : label === 'tgt' ? '#2ee59d' : '#8b949e';
+    pg.setLineDash([4, 3]); pg.beginPath(); pg.moveTo(4, Y(v)); pg.lineTo(w - R, Y(v)); pg.stroke(); pg.setLineDash([]);
+    pg.fillStyle = pg.strokeStyle; pg.fillText(label, 6, Y(v) - 3); });
+  pg.fillStyle = '#7d8590'; pg.fillText(pts[0].t, 4, h - 3); const tl = pts[pts.length - 1].t; pg.fillText(tl, w - R - pg.measureText(tl).width, h - 3);
+  const cur = x0 + (x1 - x0) * P.prog; let last = pts[0];
+  const up = pts[pts.length - 1].v >= pts[0].v;
+  pg.strokeStyle = P.unit === '%' ? '#3987e5' : up ? '#2ee59d' : '#ff3b5c'; pg.lineWidth = 2; pg.lineJoin = 'round'; pg.beginPath();
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    if (p.x <= cur || i === 0) { i ? pg.lineTo(X(p.x), Y(p.v)) : pg.moveTo(X(p.x), Y(p.v)); last = p; }
+    else { const q = pts[i - 1], f = (cur - q.x) / Math.max(1e-9, p.x - q.x); last = { x: cur, v: q.v + (p.v - q.v) * f, t: q.t }; pg.lineTo(X(cur), Y(last.v)); break; }
+  }
+  pg.stroke();
+  let shown = -1;
+  P.marks.forEach((m, i) => {
+    if (m.x > cur && P.prog < 1) return; shown = i;
+    const x = X(m.x), near = pts.reduce((a, p) => Math.abs(p.x - m.x) < Math.abs(a.x - m.x) ? p : a, pts[0]), y = Y(m.v || near.v);
+    const col = m.cls === 'c' ? '#39d0ff' : m.cls === 'g' ? '#2ee59d' : '#ff3b5c', dir = m.side === 'buy' ? 1 : -1;
+    pg.fillStyle = col; pg.strokeStyle = '#0b0f14'; pg.lineWidth = 1.5; pg.beginPath();
+    pg.moveTo(x, y + dir * 5); pg.lineTo(x - 5, y + dir * 14); pg.lineTo(x + 5, y + dir * 14); pg.closePath(); pg.fill(); pg.stroke();
+  });
+  if (shown !== P.last && shown >= 0) { P.last = shown; const m = P.marks[shown]; const tp = $('ptape'); tp.className = 'tape ' + m.cls; tp.textContent = m.text; }
+  const cx = X(last.x), cy = Y(last.v);
+  pg.fillStyle = '#e6edf3'; pg.beginPath(); pg.arc(cx, cy, 3.5, 0, 7); pg.fill();
+  pg.fillStyle = '#0b0f14'; pg.fillRect(w - R + 1, cy - 8, R - 2, 16); pg.fillStyle = '#e6edf3'; pg.font = 'bold 10px ui-monospace, Menlo, monospace'; pg.fillText(fmt(last.v), w - R + 4, cy + 3);
+}
 $('glow').onclick = () => setGlow(!glow);
-$('home').onclick = () => { camera.position.copy(HOME); controls.target.set(0, 3, -5); controls.autoRotate = true; };
+$('home').onclick = () => { if (P.open) return closePanel(); fly = null; camera.position.copy(HOME); controls.target.set(0, 3, -5); controls.autoRotate = true; };
 
 // ---------- labels follow the 3D world ----------
 const tmp = new THREE.Vector3();
 let topY = 0, botY = innerHeight;
 function bounds() { topY = document.querySelector('.top').getBoundingClientRect().bottom + 4;
-  botY = document.querySelector('.chart').getBoundingClientRect().top - 4;
+  botY = (P.open ? $('panel') : document.querySelector('.chart')).getBoundingClientRect().top - 4;
 }
 function place(el, v, dy, clamp) {
   tmp.copy(v).project(camera);
@@ -523,8 +650,11 @@ function loop(now) {
 }
 function frame(now) {
   const dt = Math.min(clock.getDelta(), 0.1), t = clock.elapsedTime;
+  if (fly) { fly.t = Math.min(1, fly.t + dt / 0.9); const k = fly.t * fly.t * (3 - 2 * fly.t);
+    camera.position.lerpVectors(fly.p0, fly.p1, k); controls.target.lerpVectors(fly.t0, fly.t1, k); if (fly.t >= 1) fly = null; }
   controls.update();
   if (replaying && rp && !rp.done) stepReplay(now);
+  if (P.open) drawPanel(now);
   dome.rotation.y += dt * 0.2; vaultBeam.material.opacity = 0.45 + Math.sin(t * 2) * 0.12;
   districts.forEach(d => {
     d.beam.material.opacity = 0.22 + Math.sin(t * 1.4 + d.angle * 3) * 0.08 + (d.pulse || 0) * 0.6;
@@ -589,5 +719,5 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); co
 refresh(); drawChart(); drawDays(); bounds(); pollLive();
 setInterval(pollLive, 10000); setInterval(pollCity, 20000);
 requestAnimationFrame(loop);
-window.CITY = { fire, D: () => D, districts };
+window.CITY = { fire, D: () => D, districts, openSleeve, openStock, closePanel, P };
 </script></body></html>"""

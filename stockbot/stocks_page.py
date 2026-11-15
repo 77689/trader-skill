@@ -744,7 +744,8 @@ def render(pathname, query, css):
     if pathname == "/city":
         return city.page(tabs("city"))
     if pathname == "/city.json":
-        return json.dumps(city.data())
+        sym = (query.get("sym") or [""])[0].upper()[:12]
+        return json.dumps(city.stock(sym) if sym else city.data())
     if pathname == "/filings":
         body = filings_page(cfg)
         refresh = "<meta http-equiv='refresh' content='60'>"

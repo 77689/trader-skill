@@ -256,8 +256,10 @@ sales. Below it: the last 10 sales with the reason for each.
 `city.py` draws the bot as a neon city you can spin with your finger. Each
 strategy is a district on a ring around the Vault (the whole bot's dollars
 made). Every stock it holds is a building: taller = more money in it, green
-or red = up or down on it. Tap a building for its numbers and a link to its
-chart. Trades fire beams and shockwaves as they happen: cyan for a buy, green
+or red = up or down on it. Tap a district (or its label) and the camera flies in and a
+panel replays that strategy trading: its line over time with every buy and
+sale popping up as it happens. Tap a building for that stock's chart with
+your buys, sales, cost and stop on it. Trades fire beams and shockwaves as they happen: cyan for a buy, green
 "PROFIT LOCKED" for a sale at a gain, red "STOPPED OUT" for a stop. Replay
 plays every trade since the start in about 30 seconds over the bot-vs-SPY
 line. Prices refresh every 10 s and trades every 20 s. Read-only.
