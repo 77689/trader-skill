@@ -67,7 +67,20 @@ def fake_cdx(web, params):
     if "query1" in url and url.endswith("/download/BNI"):
         return [["20090601000000", "https://query1.finance.yahoo.com/v7/finance/download/BNI?period1=0", "200", "text/csv", "9"]]
     return []
+class SizeWeb(object):
+    calls = 0
+    def get(self, url, tries=5):
+        import urllib.parse as up
+        q = dict(up.parse_qsl(up.urlparse(url).query))
+        if "ichart.finance" in q["url"]:
+            return b"2"
+        if "query1" in q["url"]:
+            return b'{"pages": 999, "blocks": 5000, "pageSize": 5}' if q.get("output") == "json" else b"<html>oops</html>"
+        return b"0"
+check("index size read from a bare number", wb.size_index(SizeWeb(), "ichart.finance.yahoo.com/table.csv", print) == 2)
+check("... or from JSON when the plain answer is not a number", wb.size_index(SizeWeb(), "query1.finance.yahoo.com/v7/finance/download/", print) == 999)
 wb.cdx = fake_cdx
+wb.size_index = lambda web, prefix, log: fake_cdx(web, [("url", prefix), ("showNumPages", "true")])
 hits = wb.search(None, {"G", "WYE", "BNI"}, lambda *a: None)
 check("scan finds G and WYE (any case, any parameter order), not GE", set(hits) == {"G", "WYE", "BNI"} and len(hits["G"]) == 1, hits)
 check("a too-big index is asked ticker by ticker", any(dict(p)["url"].endswith("/download/BNI") for p in calls))
@@ -101,6 +114,8 @@ def cut_cdx(web, params):
     d = dict(params)
     if "showNumPages" in d:
         return 999 if "query1" in d["url"] else 0
+    if "limit" in d and d.get("limit") == "20000":
+        return []
     if "query1" in d["url"] and "/download/" in d["url"] and not d["url"].endswith("/download/"):
         if budget[0] <= 0:
             raise TimeoutError("time is up")
@@ -108,6 +123,7 @@ def cut_cdx(web, params):
         asked_urls.append(d["url"])
     return []
 wb.cdx = cut_cdx
+wb.size_index = lambda web, prefix, log: cut_cdx(web, [("url", prefix), ("showNumPages", "true")])
 wb.main()
 first = list(asked_urls)
 check("stopped run: summary says it is not finished", not json.load(open(os.path.join(out, "summary.json")))["finished"])

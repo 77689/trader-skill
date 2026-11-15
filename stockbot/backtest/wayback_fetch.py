@@ -31,6 +31,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import sys
 import time
 import urllib.error
@@ -131,6 +132,24 @@ def cdx(web, params):
     return rows[1:] if rows and rows[0] and rows[0][0] == "timestamp" else rows
 
 
+def size_index(web, prefix, log):
+    """How many pages the archive's index has for this prefix, or None. The answer comes back as a bare
+    number or as JSON depending on the request, so both are tried and read."""
+    last = ""
+    for extra in ([], [("output", "json")]):
+        b = web.get(CDX + "?" + urllib.parse.urlencode([("url", prefix), ("matchType", "prefix"), ("showNumPages", "true")] + extra))
+        if b is None:
+            last = "(no answer)"
+            continue
+        t = b.decode("utf-8", "replace").strip()
+        m = re.search(r'"pages"\s*:\s*(\d+)', t) or re.match(r"^\[?\s*(\d+)\s*\]?$", t)
+        if m:
+            return int(m.group(1))
+        last = t[:150].replace("\n", " ")
+    log("    (the index answered: %s)" % (last or "nothing"))
+    return None
+
+
 def params_has(params, key):
     return any(k == key for k, _ in params)
 
@@ -165,7 +184,7 @@ def search(web, tickers, log, prog=None, save=lambda: None):
         filters = [("filter", "statuscode:200")] + [("filter", "original:" + p.format(alt=alt)) for p in pats]
         base = [("url", prefix), ("matchType", "prefix"), ("output", "json"), ("fl", FIELDS)]
         asked = done.get(prefix) if isinstance(done.get(prefix), list) else None
-        pages = None if asked is not None else cdx(web, base + [("showNumPages", "true")])
+        pages = None if asked is not None else size_index(web, prefix, log)
         if asked is None and isinstance(pages, int) and pages <= MAX_PAGES:
             log("  %s: scanning %d index page%s" % (prefix, pages, "" if pages == 1 else "s"))
             rows = []
@@ -189,8 +208,14 @@ def search(web, tickers, log, prog=None, save=lambda: None):
                     save()
             log("  %s: asked about all %d tickers" % (prefix, len(tickers)))
         else:
-            log("  %s: %s, skipped" % (prefix, "index too big to scan (%s pages)" % pages if isinstance(pages, int)
-                                         else "could not size the index"))
+            # no per-ticker form for this site: one filtered request instead of a paged scan
+            rows = cdx(web, base + filters + [("limit", "20000")])
+            if rows:
+                n, seen = add(rows, source)
+                log("  %s: %d captures of %d of the companies (one filtered request)" % (prefix, n, len(seen)))
+            else:
+                log("  %s: %s, nothing found" % (prefix, "index too big to scan (%s pages)" % pages if isinstance(pages, int)
+                                                   else "could not size the index"))
         done[prefix] = True
         save()
     return hits
@@ -299,6 +324,10 @@ def main():
     prog_f = os.path.join(OUT, "progress.json")
     prog = json.load(open(prog_f)) if os.path.exists(prog_f) else {}
     web = Web(time.time() + a.minutes * 60)
+
+    def stop(*_):
+        raise KeyboardInterrupt()
+    signal.signal(signal.SIGTERM, stop)            # pkill: keep what was found before stopping
     log("looking for %d companies in the Internet Archive (stops after %.0f minutes)" % (len(targets), a.minutes))
     try:
         save = lambda: json.dump(prog, open(prog_f, "w"))
