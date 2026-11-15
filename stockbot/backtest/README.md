@@ -24,3 +24,13 @@ Order:
     `cashtest.py`                  the idle-cash study
 
 Nothing here holds a key or a password. The SEC contact header is read from the bot's config file.
+
+## Filling the last gaps from the phone
+
+`wayback_fetch.py` runs on the phone (Termux has normal internet; the place these scripts were
+written cannot reach the Internet Archive). It searches the archive's capture index for old Yahoo,
+Google and Stooq price downloads of the companies in `wayback_targets.json` (343 tickers with
+months the test has no prices for, plus Gillette, Wesco and Burlington Northern for Berkshire),
+keeps only files whose dates fit the months needed, and saves them to ~/stockbot-data/wayback/,
+from where the stock sync uploads them. Stops after --minutes and carries on when run again.
+Offline tests: `stockbot/tests/test_wayback.py`.

@@ -1,0 +1,3456 @@
+{
+"AAMRQ": {
+"months": 39,
+"need": [
+[
+"2000-01",
+"2003-03"
+]
+],
+"why": "no prices for these months"
+},
+"ABI": {
+"months": 107,
+"need": [
+[
+"2000-01",
+"2008-11"
+]
+],
+"why": "no prices for these months"
+},
+"ABKFQ": {
+"months": 90,
+"need": [
+[
+"2001-01",
+"2008-06"
+]
+],
+"why": "no prices for these months"
+},
+"ABMD": {
+"months": 55,
+"need": [
+[
+"2018-06",
+"2022-12"
+]
+],
+"why": "no prices for these months"
+},
+"ABS": {
+"months": 78,
+"need": [
+[
+"2000-01",
+"2006-06"
+]
+],
+"why": "no prices for these months"
+},
+"ABX": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"ACKH": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"ACS": {
+"months": 70,
+"need": [
+[
+"2004-05",
+"2010-02"
+]
+],
+"why": "no prices for these months"
+},
+"ACV": {
+"months": 83,
+"need": [
+[
+"2000-01",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"ADCT": {
+"months": 91,
+"need": [
+[
+"2000-01",
+"2007-07"
+]
+],
+"why": "no prices for these months"
+},
+"AET": {
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"why": "no prices for these months"
+},
+"AFS.A": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"AGC": {
+"months": 20,
+"need": [
+[
+"2000-01",
+"2001-08"
+]
+],
+"why": "no prices for these months"
+},
+"AGN": {
+"months": 26,
+"need": [
+[
+"2018-04",
+"2020-05"
+]
+],
+"why": "no prices for these months"
+},
+"AL": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"ALXN": {
+"months": 40,
+"need": [
+[
+"2018-04",
+"2021-07"
+]
+],
+"why": "no prices for these months"
+},
+"AM": {
+"months": 53,
+"need": [
+[
+"2000-01",
+"2004-05"
+]
+],
+"why": "no prices for these months"
+},
+"ANDV": {
+"months": 125,
+"need": [
+[
+"2007-10",
+"2017-08"
+],
+[
+"2018-04",
+"2018-09"
+]
+],
+"why": "no prices for these months"
+},
+"ANDW": {
+"months": 82,
+"need": [
+[
+"2000-01",
+"2006-10"
+]
+],
+"why": "no prices for these months"
+},
+"ANRZQ": {
+"months": 16,
+"need": [
+[
+"2011-07",
+"2012-10"
+]
+],
+"why": "no prices for these months"
+},
+"ANSS": {
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"why": "no prices for these months"
+},
+"APC": {
+"months": 17,
+"need": [
+[
+"2018-04",
+"2019-08"
+]
+],
+"why": "no prices for these months"
+},
+"APCC": {
+"months": 81,
+"need": [
+[
+"2000-06",
+"2007-02"
+]
+],
+"why": "no prices for these months"
+},
+"ARC": {
+"months": 4,
+"need": [
+[
+"2000-01",
+"2000-04"
+]
+],
+"why": "no prices for these months"
+},
+"ASN": {
+"months": 34,
+"need": [
+[
+"2005-01",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"ASO": {
+"months": 83,
+"need": [
+[
+"2000-01",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"AT": {
+"months": 95,
+"need": [
+[
+"2000-01",
+"2007-11"
+]
+],
+"why": "no prices for these months"
+},
+"ATGE": {
+"months": 39,
+"need": [
+[
+"2009-07",
+"2012-09"
+]
+],
+"why": "no prices for these months"
+},
+"ATVI": {
+"months": 67,
+"need": [
+[
+"2018-04",
+"2023-10"
+]
+],
+"why": "no prices for these months"
+},
+"AV": {
+"months": 84,
+"need": [
+[
+"2000-11",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"AVB": {
+"months": 101,
+"need": [
+[
+"2018-04",
+"2026-08"
+]
+],
+"why": "no prices for these months"
+},
+"AW": {
+"months": 108,
+"need": [
+[
+"2000-01",
+"2008-12"
+]
+],
+"why": "no prices for these months"
+},
+"AWE": {
+"months": 39,
+"need": [
+[
+"2001-08",
+"2004-10"
+]
+],
+"why": "no prices for these months"
+},
+"AYE": {
+"months": 122,
+"need": [
+[
+"2001-01",
+"2011-02"
+]
+],
+"why": "no prices for these months"
+},
+"AZA.A": {
+"months": 18,
+"need": [
+[
+"2000-01",
+"2001-06"
+]
+],
+"why": "no prices for these months"
+},
+"BDK": {
+"months": 123,
+"need": [
+[
+"2000-01",
+"2010-03"
+]
+],
+"why": "no prices for these months"
+},
+"BFO": {
+"months": 10,
+"need": [
+[
+"2000-01",
+"2000-10"
+]
+],
+"why": "no prices for these months"
+},
+"BGEN": {
+"months": 46,
+"need": [
+[
+"2000-02",
+"2003-11"
+]
+],
+"why": "no prices for these months"
+},
+"BHMSQ": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"BJS": {
+"months": 95,
+"need": [
+[
+"2002-06",
+"2010-04"
+]
+],
+"why": "no prices for these months"
+},
+"BLS": {
+"months": 85,
+"need": [
+[
+"2000-01",
+"2007-01"
+]
+],
+"why": "no prices for these months"
+},
+"BMC": {
+"months": 165,
+"need": [
+[
+"2000-01",
+"2013-09"
+]
+],
+"why": "no prices for these months"
+},
+"BMET": {
+"months": 91,
+"need": [
+[
+"2000-01",
+"2007-07"
+]
+],
+"why": "no prices for these months"
+},
+"BNI": {
+"months": 38,
+"need": [
+[
+"2007-01",
+"2010-02"
+]
+],
+"why": "Berkshire: Burlington Northern Santa Fe"
+},
+"BOL": {
+"months": 94,
+"need": [
+[
+"2000-01",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"BR": {
+"months": 76,
+"need": [
+[
+"2000-01",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"BRL": {
+"months": 34,
+"need": [
+[
+"2006-03",
+"2008-12"
+]
+],
+"why": "no prices for these months"
+},
+"BSC": {
+"months": 102,
+"need": [
+[
+"2000-01",
+"2008-06"
+]
+],
+"why": "no prices for these months"
+},
+"BTUUQ": {
+"months": 94,
+"need": [
+[
+"2006-12",
+"2014-09"
+]
+],
+"why": "no prices for these months"
+},
+"BUD": {
+"months": 107,
+"need": [
+[
+"2000-01",
+"2008-11"
+]
+],
+"why": "no prices for these months"
+},
+"BVSN": {
+"months": 10,
+"need": [
+[
+"2000-12",
+"2001-09"
+]
+],
+"why": "no prices for these months"
+},
+"CA": {
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"why": "no prices for these months"
+},
+"CBE": {
+"months": 130,
+"need": [
+[
+"2000-01",
+"2009-09"
+],
+[
+"2011-12",
+"2012-12"
+]
+],
+"why": "no prices for these months"
+},
+"CBH": {
+"months": 21,
+"need": [
+[
+"2006-07",
+"2008-03"
+]
+],
+"why": "no prices for these months"
+},
+"CBS": {
+"months": 93,
+"need": [
+[
+"2000-01",
+"2005-12"
+],
+[
+"2018-04",
+"2019-12"
+]
+],
+"why": "no prices for these months"
+},
+"CBSS": {
+"months": 33,
+"need": [
+[
+"2005-01",
+"2007-09"
+]
+],
+"why": "no prices for these months"
+},
+"CCTYQ": {
+"months": 99,
+"need": [
+[
+"2000-01",
+"2008-03"
+]
+],
+"why": "no prices for these months"
+},
+"CDAY": {
+"months": 28,
+"need": [
+[
+"2021-10",
+"2024-01"
+]
+],
+"why": "no prices for these months"
+},
+"CE": {
+"months": 34,
+"need": [
+[
+"2001-05",
+"2004-02"
+]
+],
+"why": "no prices for these months"
+},
+"CEG": {
+"months": 147,
+"need": [
+[
+"2000-01",
+"2012-03"
+]
+],
+"why": "no prices for these months"
+},
+"CELG": {
+"months": 20,
+"need": [
+[
+"2018-04",
+"2019-11"
+]
+],
+"why": "no prices for these months"
+},
+"CEN": {
+"months": 16,
+"need": [
+[
+"2000-01",
+"2001-04"
+]
+],
+"why": "no prices for these months"
+},
+"CEPH": {
+"months": 35,
+"need": [
+[
+"2008-12",
+"2011-10"
+]
+],
+"why": "no prices for these months"
+},
+"CERN": {
+"months": 51,
+"need": [
+[
+"2018-04",
+"2022-06"
+]
+],
+"why": "no prices for these months"
+},
+"CF": {
+"months": 50,
+"need": [
+[
+"2000-07",
+"2004-08"
+]
+],
+"why": "no prices for these months"
+},
+"CFC": {
+"months": 102,
+"need": [
+[
+"2000-01",
+"2008-06"
+]
+],
+"why": "no prices for these months"
+},
+"CG": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"CGP": {
+"months": 13,
+"need": [
+[
+"2000-01",
+"2001-01"
+]
+],
+"why": "no prices for these months"
+},
+"CHA": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"CHIR": {
+"months": 65,
+"need": [
+[
+"2000-12",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"CIN": {
+"months": 76,
+"need": [
+[
+"2000-01",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"CIT.A": {
+"months": 11,
+"need": [
+[
+"2000-08",
+"2001-06"
+]
+],
+"why": "no prices for these months"
+},
+"CITGQ": {
+"months": 57,
+"need": [
+[
+"2004-11",
+"2009-07"
+]
+],
+"why": "no prices for these months"
+},
+"CMA": {
+"months": 75,
+"need": [
+[
+"2018-04",
+"2024-06"
+]
+],
+"why": "no prices for these months"
+},
+"CMVT": {
+"months": 85,
+"need": [
+[
+"2000-01",
+"2007-01"
+]
+],
+"why": "no prices for these months"
+},
+"CMX": {
+"months": 36,
+"need": [
+[
+"2004-04",
+"2007-03"
+]
+],
+"why": "no prices for these months"
+},
+"CNC": {
+"months": 24,
+"need": [
+[
+"2000-01",
+"2001-12"
+]
+],
+"why": "no prices for these months"
+},
+"CNG": {
+"months": 1,
+"need": [
+[
+"2000-01",
+"2000-01"
+]
+],
+"why": "no prices for these months"
+},
+"CNXT": {
+"months": 29,
+"need": [
+[
+"2000-02",
+"2002-06"
+]
+],
+"why": "no prices for these months"
+},
+"COC.B": {
+"months": 33,
+"need": [
+[
+"2000-01",
+"2002-09"
+]
+],
+"why": "no prices for these months"
+},
+"COG": {
+"months": 43,
+"need": [
+[
+"2018-04",
+"2021-10"
+]
+],
+"why": "no prices for these months"
+},
+"COL": {
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"why": "no prices for these months"
+},
+"COMS": {
+"months": 7,
+"need": [
+[
+"2000-01",
+"2000-07"
+]
+],
+"why": "no prices for these months"
+},
+"CPNLQ": {
+"months": 61,
+"need": [
+[
+"2000-12",
+"2005-12"
+]
+],
+"why": "no prices for these months"
+},
+"CPQ": {
+"months": 29,
+"need": [
+[
+"2000-01",
+"2002-05"
+]
+],
+"why": "no prices for these months"
+},
+"CSRA": {
+"months": 1,
+"need": [
+[
+"2018-04",
+"2018-04"
+]
+],
+"why": "no prices for these months"
+},
+"CTLT": {
+"months": 51,
+"need": [
+[
+"2020-10",
+"2024-12"
+]
+],
+"why": "no prices for these months"
+},
+"CTRA": {
+"months": 55,
+"need": [
+[
+"2021-11",
+"2026-05"
+]
+],
+"why": "no prices for these months"
+},
+"CTX": {
+"months": 116,
+"need": [
+[
+"2000-01",
+"2009-08"
+]
+],
+"why": "no prices for these months"
+},
+"CTXS": {
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"why": "no prices for these months"
+},
+"CVH": {
+"months": 93,
+"need": [
+[
+"2005-09",
+"2013-05"
+]
+],
+"why": "no prices for these months"
+},
+"CXO": {
+"months": 34,
+"need": [
+[
+"2018-04",
+"2021-01"
+]
+],
+"why": "no prices for these months"
+},
+"DALRQ": {
+"months": 68,
+"need": [
+[
+"2000-01",
+"2005-08"
+]
+],
+"why": "no prices for these months"
+},
+"DAY": {
+"months": 25,
+"need": [
+[
+"2024-02",
+"2026-02"
+]
+],
+"why": "no prices for these months"
+},
+"DCNAQ": {
+"months": 75,
+"need": [
+[
+"2000-01",
+"2006-03"
+]
+],
+"why": "no prices for these months"
+},
+"DFS": {
+"months": 86,
+"need": [
+[
+"2018-04",
+"2025-05"
+]
+],
+"why": "no prices for these months"
+},
+"DG": {
+"months": 91,
+"need": [
+[
+"2000-01",
+"2007-07"
+]
+],
+"why": "no prices for these months"
+},
+"DISCA": {
+"months": 49,
+"need": [
+[
+"2018-04",
+"2022-04"
+]
+],
+"why": "no prices for these months"
+},
+"DISCK": {
+"months": 49,
+"need": [
+[
+"2018-04",
+"2022-04"
+]
+],
+"why": "no prices for these months"
+},
+"DISH": {
+"months": 63,
+"need": [
+[
+"2018-04",
+"2023-06"
+]
+],
+"why": "no prices for these months"
+},
+"DJ": {
+"months": 96,
+"need": [
+[
+"2000-01",
+"2007-12"
+]
+],
+"why": "no prices for these months"
+},
+"DPHIQ": {
+"months": 70,
+"need": [
+[
+"2000-01",
+"2005-10"
+]
+],
+"why": "no prices for these months"
+},
+"DRE": {
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"why": "no prices for these months"
+},
+"DWDP": {
+"months": 15,
+"need": [
+[
+"2018-04",
+"2019-06"
+]
+],
+"why": "no prices for these months"
+},
+"DYN": {
+"months": 110,
+"need": [
+[
+"2000-11",
+"2009-12"
+]
+],
+"why": "no prices for these months"
+},
+"EA": {
+"months": 101,
+"need": [
+[
+"2018-04",
+"2026-08"
+]
+],
+"why": "no prices for these months"
+},
+"EC": {
+"months": 78,
+"need": [
+[
+"2000-01",
+"2006-06"
+]
+],
+"why": "no prices for these months"
+},
+"EDS": {
+"months": 104,
+"need": [
+[
+"2000-01",
+"2008-08"
+]
+],
+"why": "no prices for these months"
+},
+"EFU": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"EKDKQ": {
+"months": 132,
+"need": [
+[
+"2000-01",
+"2010-12"
+]
+],
+"why": "no prices for these months"
+},
+"ENRNQ": {
+"months": 23,
+"need": [
+[
+"2000-01",
+"2001-11"
+]
+],
+"why": "no prices for these months"
+},
+"EOP": {
+"months": 64,
+"need": [
+[
+"2001-11",
+"2007-02"
+]
+],
+"why": "no prices for these months"
+},
+"EQ": {
+"months": 37,
+"need": [
+[
+"2006-06",
+"2009-06"
+]
+],
+"why": "no prices for these months"
+},
+"EQR": {
+"months": 101,
+"need": [
+[
+"2018-04",
+"2026-08"
+]
+],
+"why": "no prices for these months"
+},
+"ESRX": {
+"months": 9,
+"need": [
+[
+"2018-04",
+"2018-12"
+]
+],
+"why": "no prices for these months"
+},
+"ETFC": {
+"months": 31,
+"need": [
+[
+"2018-04",
+"2020-10"
+]
+],
+"why": "no prices for these months"
+},
+"ETS": {
+"months": 20,
+"need": [
+[
+"2000-01",
+"2001-08"
+]
+],
+"why": "no prices for these months"
+},
+"EVHC": {
+"months": 7,
+"need": [
+[
+"2018-04",
+"2018-10"
+]
+],
+"why": "no prices for these months"
+},
+"FBF": {
+"months": 51,
+"need": [
+[
+"2000-01",
+"2004-03"
+]
+],
+"why": "no prices for these months"
+},
+"FDC": {
+"months": 93,
+"need": [
+[
+"2000-01",
+"2007-09"
+]
+],
+"why": "no prices for these months"
+},
+"FDXF": {
+"months": 6,
+"need": [
+[
+"2026-06",
+"2026-11"
+]
+],
+"why": "no prices for these months"
+},
+"FI": {
+"months": 29,
+"need": [
+[
+"2023-07",
+"2025-11"
+]
+],
+"why": "no prices for these months"
+},
+"FJ": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"FL": {
+"months": 17,
+"need": [
+[
+"2018-04",
+"2019-08"
+]
+],
+"why": "no prices for these months"
+},
+"FLIR": {
+"months": 38,
+"need": [
+[
+"2018-04",
+"2021-05"
+]
+],
+"why": "no prices for these months"
+},
+"FLTWQ": {
+"months": 1,
+"need": [
+[
+"2000-01",
+"2000-01"
+]
+],
+"why": "no prices for these months"
+},
+"FOX": {
+"months": 12,
+"need": [
+[
+"2018-04",
+"2019-03"
+]
+],
+"why": "no prices for these months"
+},
+"FOXA": {
+"months": 12,
+"need": [
+[
+"2018-04",
+"2019-03"
+]
+],
+"why": "no prices for these months"
+},
+"FPC": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"FRC": {
+"months": 52,
+"need": [
+[
+"2019-02",
+"2023-05"
+]
+],
+"why": "no prices for these months"
+},
+"FSH": {
+"months": 27,
+"need": [
+[
+"2004-09",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"FSL": {
+"months": 24,
+"need": [
+[
+"2005-01",
+"2006-12"
+]
+],
+"why": "no prices for these months"
+},
+"FWLT": {
+"months": 1,
+"need": [
+[
+"2000-01",
+"2000-01"
+]
+],
+"why": "no prices for these months"
+},
+"G": {
+"months": 72,
+"need": [
+[
+"1999-11",
+"2005-10"
+]
+],
+"why": "Berkshire: Gillette"
+},
+"GAPTQ": {
+"months": 8,
+"need": [
+[
+"2000-01",
+"2000-08"
+]
+],
+"why": "no prices for these months"
+},
+"GDT": {
+"months": 76,
+"need": [
+[
+"2000-01",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"GDW": {
+"months": 82,
+"need": [
+[
+"2000-01",
+"2006-10"
+]
+],
+"why": "no prices for these months"
+},
+"GENZ": {
+"months": 73,
+"need": [
+[
+"2002-01",
+"2008-01"
+]
+],
+"why": "no prices for these months"
+},
+"GGP": {
+"months": 5,
+"need": [
+[
+"2018-04",
+"2018-08"
+]
+],
+"why": "no prices for these months"
+},
+"GLK": {
+"months": 67,
+"need": [
+[
+"2000-01",
+"2005-07"
+]
+],
+"why": "no prices for these months"
+},
+"GP": {
+"months": 72,
+"need": [
+[
+"2000-01",
+"2005-12"
+]
+],
+"why": "no prices for these months"
+},
+"GPU": {
+"months": 23,
+"need": [
+[
+"2000-01",
+"2001-11"
+]
+],
+"why": "no prices for these months"
+},
+"GR": {
+"months": 151,
+"need": [
+[
+"2000-01",
+"2012-07"
+]
+],
+"why": "no prices for these months"
+},
+"GTE": {
+"months": 7,
+"need": [
+[
+"2000-01",
+"2000-07"
+]
+],
+"why": "no prices for these months"
+},
+"GTW": {
+"months": 79,
+"need": [
+[
+"2000-01",
+"2006-07"
+]
+],
+"why": "no prices for these months"
+},
+"GX": {
+"months": 22,
+"need": [
+[
+"2000-01",
+"2001-10"
+]
+],
+"why": "no prices for these months"
+},
+"H": {
+"months": 27,
+"need": [
+[
+"2000-01",
+"2001-06"
+],
+[
+"2006-08",
+"2007-04"
+]
+],
+"why": "no prices for these months"
+},
+"HBI": {
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"why": "no prices for these months"
+},
+"HCA": {
+"months": 83,
+"need": [
+[
+"2000-01",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"HCBK": {
+"months": 1,
+"need": [
+[
+"2015-11",
+"2015-11"
+]
+],
+"why": "no prices for these months"
+},
+"HCR": {
+"months": 95,
+"need": [
+[
+"2000-01",
+"2007-11"
+]
+],
+"why": "no prices for these months"
+},
+"HES": {
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"why": "no prices for these months"
+},
+"HET": {
+"months": 97,
+"need": [
+[
+"2000-01",
+"2008-01"
+]
+],
+"why": "no prices for these months"
+},
+"HI": {
+"months": 39,
+"need": [
+[
+"2000-01",
+"2003-03"
+]
+],
+"why": "no prices for these months"
+},
+"HLT": {
+"months": 94,
+"need": [
+[
+"2000-01",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"HM": {
+"months": 24,
+"need": [
+[
+"2000-01",
+"2001-12"
+]
+],
+"why": "no prices for these months"
+},
+"HMA": {
+"months": 64,
+"need": [
+[
+"2001-12",
+"2007-03"
+]
+],
+"why": "no prices for these months"
+},
+"HNZ": {
+"months": 162,
+"need": [
+[
+"2000-01",
+"2013-06"
+]
+],
+"why": "no prices for these months"
+},
+"HOLX": {
+"months": 97,
+"need": [
+[
+"2018-04",
+"2026-04"
+]
+],
+"why": "no prices for these months"
+},
+"HONA": {
+"months": 5,
+"need": [
+[
+"2026-07",
+"2026-11"
+]
+],
+"why": "no prices for these months"
+},
+"HPC": {
+"months": 107,
+"need": [
+[
+"2000-01",
+"2008-11"
+]
+],
+"why": "no prices for these months"
+},
+"IAC": {
+"months": 21,
+"need": [
+[
+"2006-12",
+"2008-08"
+]
+],
+"why": "no prices for these months"
+},
+"IKN": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"IMNX": {
+"months": 10,
+"need": [
+[
+"2001-10",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"INCLF": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"INFO": {
+"months": 48,
+"need": [
+[
+"2018-04",
+"2022-03"
+]
+],
+"why": "no prices for these months"
+},
+"IPG": {
+"months": 92,
+"need": [
+[
+"2018-04",
+"2025-11"
+]
+],
+"why": "no prices for these months"
+},
+"JAVA": {
+"months": 121,
+"need": [
+[
+"2000-01",
+"2010-01"
+]
+],
+"why": "no prices for these months"
+},
+"JHF": {
+"months": 34,
+"need": [
+[
+"2001-07",
+"2004-04"
+]
+],
+"why": "no prices for these months"
+},
+"JNPR": {
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"why": "no prices for these months"
+},
+"JOS": {
+"months": 5,
+"need": [
+[
+"2000-01",
+"2000-05"
+]
+],
+"why": "no prices for these months"
+},
+"JP": {
+"months": 76,
+"need": [
+[
+"2000-01",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"JWN": {
+"months": 27,
+"need": [
+[
+"2018-04",
+"2020-06"
+]
+],
+"why": "no prices for these months"
+},
+"K": {
+"months": 93,
+"need": [
+[
+"2018-04",
+"2025-12"
+]
+],
+"why": "no prices for these months"
+},
+"KATE": {
+"months": 108,
+"need": [
+[
+"2000-01",
+"2008-12"
+]
+],
+"why": "no prices for these months"
+},
+"KG": {
+"months": 91,
+"need": [
+[
+"2000-11",
+"2008-05"
+]
+],
+"why": "no prices for these months"
+},
+"KM": {
+"months": 25,
+"need": [
+[
+"2000-01",
+"2002-01"
+]
+],
+"why": "no prices for these months"
+},
+"KMI": {
+"months": 77,
+"need": [
+[
+"2001-01",
+"2007-05"
+]
+],
+"why": "no prices for these months"
+},
+"KRB": {
+"months": 73,
+"need": [
+[
+"2000-01",
+"2006-01"
+]
+],
+"why": "no prices for these months"
+},
+"KRI": {
+"months": 78,
+"need": [
+[
+"2000-01",
+"2006-06"
+]
+],
+"why": "no prices for these months"
+},
+"KSE": {
+"months": 84,
+"need": [
+[
+"2000-09",
+"2007-08"
+]
+],
+"why": "no prices for these months"
+},
+"KSU": {
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"why": "no prices for these months"
+},
+"KVUE": {
+"months": 39,
+"need": [
+[
+"2023-09",
+"2026-11"
+]
+],
+"why": "no prices for these months"
+},
+"LDG": {
+"months": 19,
+"need": [
+[
+"2000-01",
+"2001-07"
+]
+],
+"why": "no prices for these months"
+},
+"LEG": {
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"why": "no prices for these months"
+},
+"LEHMQ": {
+"months": 105,
+"need": [
+[
+"2000-01",
+"2008-09"
+]
+],
+"why": "no prices for these months"
+},
+"LIFE": {
+"months": 62,
+"need": [
+[
+"2008-12",
+"2014-01"
+]
+],
+"why": "no prices for these months"
+},
+"LLL": {
+"months": 15,
+"need": [
+[
+"2018-04",
+"2019-06"
+]
+],
+"why": "no prices for these months"
+},
+"LU": {
+"months": 83,
+"need": [
+[
+"2000-01",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"MAY": {
+"months": 68,
+"need": [
+[
+"2000-01",
+"2005-08"
+]
+],
+"why": "no prices for these months"
+},
+"MEA": {
+"months": 25,
+"need": [
+[
+"2000-01",
+"2002-01"
+]
+],
+"why": "no prices for these months"
+},
+"MEDI": {
+"months": 83,
+"need": [
+[
+"2000-07",
+"2007-05"
+]
+],
+"why": "no prices for these months"
+},
+"MEE": {
+"months": 48,
+"need": [
+[
+"2000-01",
+"2000-12"
+],
+[
+"2008-07",
+"2011-06"
+]
+],
+"why": "no prices for these months"
+},
+"MEL": {
+"months": 91,
+"need": [
+[
+"2000-01",
+"2007-07"
+]
+],
+"why": "no prices for these months"
+},
+"MER": {
+"months": 109,
+"need": [
+[
+"2000-01",
+"2009-01"
+]
+],
+"why": "no prices for these months"
+},
+"MERQ": {
+"months": 67,
+"need": [
+[
+"2000-07",
+"2006-01"
+]
+],
+"why": "no prices for these months"
+},
+"MFE": {
+"months": 26,
+"need": [
+[
+"2009-01",
+"2011-02"
+]
+],
+"why": "no prices for these months"
+},
+"MHS": {
+"months": 104,
+"need": [
+[
+"2003-09",
+"2012-04"
+]
+],
+"why": "no prices for these months"
+},
+"MI": {
+"months": 113,
+"need": [
+[
+"2002-03",
+"2011-07"
+]
+],
+"why": "no prices for these months"
+},
+"MIR": {
+"months": 32,
+"need": [
+[
+"2000-01",
+"2000-05"
+],
+[
+"2001-05",
+"2003-07"
+]
+],
+"why": "no prices for these months"
+},
+"MKG": {
+"months": 10,
+"need": [
+[
+"2000-01",
+"2000-10"
+]
+],
+"why": "no prices for these months"
+},
+"MMI": {
+"months": 16,
+"need": [
+[
+"2011-02",
+"2012-05"
+]
+],
+"why": "no prices for these months"
+},
+"MOLX": {
+"months": 168,
+"need": [
+[
+"2000-01",
+"2013-12"
+]
+],
+"why": "no prices for these months"
+},
+"MON": {
+"months": 3,
+"need": [
+[
+"2018-04",
+"2018-06"
+]
+],
+"why": "no prices for these months"
+},
+"MRO": {
+"months": 80,
+"need": [
+[
+"2018-04",
+"2024-11"
+]
+],
+"why": "no prices for these months"
+},
+"MTLQQ": {
+"months": 114,
+"need": [
+[
+"2000-01",
+"2009-06"
+]
+],
+"why": "no prices for these months"
+},
+"MXIM": {
+"months": 32,
+"need": [
+[
+"2019-01",
+"2021-08"
+]
+],
+"why": "no prices for these months"
+},
+"MYG": {
+"months": 76,
+"need": [
+[
+"2000-01",
+"2006-04"
+]
+],
+"why": "no prices for these months"
+},
+"MZIAQ": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"NBL": {
+"months": 31,
+"need": [
+[
+"2018-04",
+"2020-10"
+]
+],
+"why": "no prices for these months"
+},
+"NCC": {
+"months": 109,
+"need": [
+[
+"2000-01",
+"2009-01"
+]
+],
+"why": "no prices for these months"
+},
+"NCE": {
+"months": 8,
+"need": [
+[
+"2000-01",
+"2000-08"
+]
+],
+"why": "no prices for these months"
+},
+"NFB": {
+"months": 52,
+"need": [
+[
+"2002-08",
+"2006-11"
+]
+],
+"why": "no prices for these months"
+},
+"NFX": {
+"months": 11,
+"need": [
+[
+"2018-04",
+"2019-02"
+]
+],
+"why": "no prices for these months"
+},
+"NGH": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"NLSN": {
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"why": "no prices for these months"
+},
+"NLV": {
+"months": 1,
+"need": [
+[
+"2000-01",
+"2000-01"
+]
+],
+"why": "no prices for these months"
+},
+"NMK": {
+"months": 25,
+"need": [
+[
+"2000-01",
+"2002-01"
+]
+],
+"why": "no prices for these months"
+},
+"NOVL": {
+"months": 136,
+"need": [
+[
+"2000-01",
+"2011-04"
+]
+],
+"why": "no prices for these months"
+},
+"NRTLQ": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"NSI": {
+"months": 24,
+"need": [
+[
+"2000-01",
+"2001-12"
+]
+],
+"why": "no prices for these months"
+},
+"NSM": {
+"months": 141,
+"need": [
+[
+"2000-01",
+"2011-09"
+]
+],
+"why": "no prices for these months"
+},
+"NVLS": {
+"months": 144,
+"need": [
+[
+"2000-07",
+"2012-06"
+]
+],
+"why": "no prices for these months"
+},
+"NXTL": {
+"months": 68,
+"need": [
+[
+"2000-01",
+"2005-08"
+]
+],
+"why": "no prices for these months"
+},
+"NYX": {
+"months": 73,
+"need": [
+[
+"2007-11",
+"2013-11"
+]
+],
+"why": "no prices for these months"
+},
+"OAT": {
+"months": 20,
+"need": [
+[
+"2000-01",
+"2001-08"
+]
+],
+"why": "no prices for these months"
+},
+"OK": {
+"months": 16,
+"need": [
+[
+"2000-01",
+"2001-04"
+]
+],
+"why": "no prices for these months"
+},
+"OMX": {
+"months": 102,
+"need": [
+[
+"2000-01",
+"2008-06"
+]
+],
+"why": "no prices for these months"
+},
+"ONE": {
+"months": 54,
+"need": [
+[
+"2000-01",
+"2004-06"
+]
+],
+"why": "no prices for these months"
+},
+"OWENQ": {
+"months": 10,
+"need": [
+[
+"2000-01",
+"2000-10"
+]
+],
+"why": "no prices for these months"
+},
+"PALM": {
+"months": 25,
+"need": [
+[
+"2000-08",
+"2002-08"
+]
+],
+"why": "no prices for these months"
+},
+"PBCT": {
+"months": 49,
+"need": [
+[
+"2018-04",
+"2022-04"
+]
+],
+"why": "no prices for these months"
+},
+"PBG": {
+"months": 105,
+"need": [
+[
+"2001-06",
+"2010-02"
+]
+],
+"why": "no prices for these months"
+},
+"PCS": {
+"months": 52,
+"need": [
+[
+"2000-01",
+"2004-04"
+]
+],
+"why": "no prices for these months"
+},
+"PD": {
+"months": 87,
+"need": [
+[
+"2000-01",
+"2007-03"
+]
+],
+"why": "no prices for these months"
+},
+"PDG": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"PGL": {
+"months": 86,
+"need": [
+[
+"2000-01",
+"2007-02"
+]
+],
+"why": "no prices for these months"
+},
+"PGN": {
+"months": 151,
+"need": [
+[
+"2000-01",
+"2012-07"
+]
+],
+"why": "no prices for these months"
+},
+"PHA": {
+"months": 40,
+"need": [
+[
+"2000-01",
+"2003-04"
+]
+],
+"why": "no prices for these months"
+},
+"PNU": {
+"months": 4,
+"need": [
+[
+"2000-01",
+"2000-04"
+]
+],
+"why": "no prices for these months"
+},
+"PRD": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"PSFT": {
+"months": 60,
+"need": [
+[
+"2000-01",
+"2004-12"
+]
+],
+"why": "no prices for these months"
+},
+"PSKY": {
+"months": 15,
+"need": [
+[
+"2025-09",
+"2026-11"
+]
+],
+"why": "no prices for these months"
+},
+"PTV": {
+"months": 131,
+"need": [
+[
+"2000-01",
+"2010-11"
+]
+],
+"why": "no prices for these months"
+},
+"PVN": {
+"months": 70,
+"need": [
+[
+"2000-01",
+"2005-10"
+]
+],
+"why": "no prices for these months"
+},
+"PWER": {
+"months": 53,
+"need": [
+[
+"2000-11",
+"2005-03"
+]
+],
+"why": "no prices for these months"
+},
+"PWJ": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"PXD": {
+"months": 74,
+"need": [
+[
+"2018-04",
+"2024-05"
+]
+],
+"why": "no prices for these months"
+},
+"Q": {
+"months": 128,
+"need": [
+[
+"2000-08",
+"2011-03"
+]
+],
+"why": "no prices for these months"
+},
+"QRVO": {
+"months": 81,
+"need": [
+[
+"2018-04",
+"2024-12"
+]
+],
+"why": "no prices for these months"
+},
+"QTRN": {
+"months": 45,
+"need": [
+[
+"2000-01",
+"2003-09"
+]
+],
+"why": "no prices for these months"
+},
+"RAL": {
+"months": 24,
+"need": [
+[
+"2000-01",
+"2001-12"
+]
+],
+"why": "no prices for these months"
+},
+"RATL": {
+"months": 13,
+"need": [
+[
+"2002-02",
+"2003-02"
+]
+],
+"why": "no prices for these months"
+},
+"RBK": {
+"months": 73,
+"need": [
+[
+"2000-01",
+"2006-01"
+]
+],
+"why": "no prices for these months"
+},
+"RDS.A": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"RHT": {
+"months": 16,
+"need": [
+[
+"2018-04",
+"2019-07"
+]
+],
+"why": "no prices for these months"
+},
+"RLM": {
+"months": 5,
+"need": [
+[
+"2000-01",
+"2000-05"
+]
+],
+"why": "no prices for these months"
+},
+"RML": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"RNB": {
+"months": 1,
+"need": [
+[
+"2000-01",
+"2000-01"
+]
+],
+"why": "no prices for these months"
+},
+"ROH": {
+"months": 112,
+"need": [
+[
+"2000-01",
+"2009-04"
+]
+],
+"why": "no prices for these months"
+},
+"RSHCQ": {
+"months": 138,
+"need": [
+[
+"2000-01",
+"2011-06"
+]
+],
+"why": "no prices for these months"
+},
+"RTN": {
+"months": 25,
+"need": [
+[
+"2018-04",
+"2020-04"
+]
+],
+"why": "no prices for these months"
+},
+"RX": {
+"months": 122,
+"need": [
+[
+"2000-01",
+"2010-02"
+]
+],
+"why": "no prices for these months"
+},
+"SAF": {
+"months": 105,
+"need": [
+[
+"2000-01",
+"2008-09"
+]
+],
+"why": "no prices for these months"
+},
+"SATS": {
+"months": 3,
+"need": [
+[
+"2026-04",
+"2026-06"
+]
+],
+"why": "no prices for these months"
+},
+"SBL": {
+"months": 73,
+"need": [
+[
+"2001-01",
+"2007-01"
+]
+],
+"why": "no prices for these months"
+},
+"SBNY": {
+"months": 15,
+"need": [
+[
+"2022-01",
+"2023-03"
+]
+],
+"why": "no prices for these months"
+},
+"SCG": {
+"months": 10,
+"need": [
+[
+"2018-04",
+"2019-01"
+]
+],
+"why": "no prices for these months"
+},
+"SDS": {
+"months": 37,
+"need": [
+[
+"2002-08",
+"2005-08"
+]
+],
+"why": "no prices for these months"
+},
+"SEBL": {
+"months": 68,
+"need": [
+[
+"2000-06",
+"2006-01"
+]
+],
+"why": "no prices for these months"
+},
+"SEE": {
+"months": 69,
+"need": [
+[
+"2018-04",
+"2023-12"
+]
+],
+"why": "no prices for these months"
+},
+"SEG": {
+"months": 11,
+"need": [
+[
+"2000-01",
+"2000-11"
+]
+],
+"why": "no prices for these months"
+},
+"SFA": {
+"months": 74,
+"need": [
+[
+"2000-01",
+"2006-02"
+]
+],
+"why": "no prices for these months"
+},
+"SGID": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"SGP": {
+"months": 119,
+"need": [
+[
+"2000-01",
+"2009-11"
+]
+],
+"why": "no prices for these months"
+},
+"SII": {
+"months": 40,
+"need": [
+[
+"2006-11",
+"2010-02"
+]
+],
+"why": "no prices for these months"
+},
+"SIVB": {
+"months": 60,
+"need": [
+[
+"2018-04",
+"2023-03"
+]
+],
+"why": "no prices for these months"
+},
+"SLR": {
+"months": 94,
+"need": [
+[
+"2000-01",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"SMI": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"SMS": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"SOTR": {
+"months": 58,
+"need": [
+[
+"2000-01",
+"2004-10"
+]
+],
+"why": "no prices for these months"
+},
+"SOV": {
+"months": 55,
+"need": [
+[
+"2004-07",
+"2009-01"
+]
+],
+"why": "no prices for these months"
+},
+"SRCL": {
+"months": 9,
+"need": [
+[
+"2018-04",
+"2018-12"
+]
+],
+"why": "no prices for these months"
+},
+"STI": {
+"months": 21,
+"need": [
+[
+"2018-04",
+"2019-12"
+]
+],
+"why": "no prices for these months"
+},
+"SUB": {
+"months": 14,
+"need": [
+[
+"2000-01",
+"2001-02"
+]
+],
+"why": "no prices for these months"
+},
+"SUN": {
+"months": 153,
+"need": [
+[
+"2000-01",
+"2012-09"
+]
+],
+"why": "no prices for these months"
+},
+"SUNEQ": {
+"months": 55,
+"need": [
+[
+"2007-06",
+"2011-12"
+]
+],
+"why": "no prices for these months"
+},
+"SXCL": {
+"months": 17,
+"need": [
+[
+"2000-01",
+"2001-05"
+]
+],
+"why": "no prices for these months"
+},
+"TEK": {
+"months": 95,
+"need": [
+[
+"2000-01",
+"2007-11"
+]
+],
+"why": "no prices for these months"
+},
+"TIE": {
+"months": 62,
+"need": [
+[
+"2007-11",
+"2012-12"
+]
+],
+"why": "no prices for these months"
+},
+"TIF": {
+"months": 34,
+"need": [
+[
+"2018-04",
+"2021-01"
+]
+],
+"why": "no prices for these months"
+},
+"TIN": {
+"months": 96,
+"need": [
+[
+"2000-01",
+"2007-12"
+]
+],
+"why": "no prices for these months"
+},
+"TLAB": {
+"months": 144,
+"need": [
+[
+"2000-01",
+"2011-12"
+]
+],
+"why": "no prices for these months"
+},
+"TMC": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"TMC.A": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"TNB": {
+"months": 56,
+"need": [
+[
+"2000-01",
+"2004-08"
+]
+],
+"why": "no prices for these months"
+},
+"TOS": {
+"months": 21,
+"need": [
+[
+"2000-01",
+"2001-09"
+]
+],
+"why": "no prices for these months"
+},
+"TOY": {
+"months": 67,
+"need": [
+[
+"2000-01",
+"2005-07"
+]
+],
+"why": "no prices for these months"
+},
+"TRB": {
+"months": 96,
+"need": [
+[
+"2000-01",
+"2007-12"
+]
+],
+"why": "no prices for these months"
+},
+"TRW": {
+"months": 36,
+"need": [
+[
+"2000-01",
+"2002-12"
+]
+],
+"why": "no prices for these months"
+},
+"TSG": {
+"months": 85,
+"need": [
+[
+"2000-04",
+"2007-04"
+]
+],
+"why": "no prices for these months"
+},
+"TSS": {
+"months": 18,
+"need": [
+[
+"2018-04",
+"2019-09"
+]
+],
+"why": "no prices for these months"
+},
+"TWTR": {
+"months": 52,
+"need": [
+[
+"2018-07",
+"2022-10"
+]
+],
+"why": "no prices for these months"
+},
+"TWX": {
+"months": 3,
+"need": [
+[
+"2018-04",
+"2018-06"
+]
+],
+"why": "no prices for these months"
+},
+"TX": {
+"months": 22,
+"need": [
+[
+"2000-01",
+"2001-10"
+]
+],
+"why": "no prices for these months"
+},
+"TXU": {
+"months": 94,
+"need": [
+[
+"2000-01",
+"2007-10"
+]
+],
+"why": "no prices for these months"
+},
+"UAWGQ": {
+"months": 29,
+"need": [
+[
+"2000-01",
+"2002-05"
+]
+],
+"why": "no prices for these months"
+},
+"UCL": {
+"months": 68,
+"need": [
+[
+"2000-01",
+"2005-08"
+]
+],
+"why": "no prices for these months"
+},
+"UCM": {
+"months": 10,
+"need": [
+[
+"2000-01",
+"2000-10"
+]
+],
+"why": "no prices for these months"
+},
+"UK": {
+"months": 14,
+"need": [
+[
+"2000-01",
+"2001-02"
+]
+],
+"why": "no prices for these months"
+},
+"UMG": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"UN": {
+"months": 31,
+"need": [
+[
+"2000-01",
+"2002-07"
+]
+],
+"why": "no prices for these months"
+},
+"UPC": {
+"months": 54,
+"need": [
+[
+"2000-01",
+"2004-06"
+]
+],
+"why": "no prices for these months"
+},
+"UPR": {
+"months": 7,
+"need": [
+[
+"2000-01",
+"2000-07"
+]
+],
+"why": "no prices for these months"
+},
+"UST": {
+"months": 109,
+"need": [
+[
+"2000-01",
+"2009-01"
+]
+],
+"why": "no prices for these months"
+},
+"USW": {
+"months": 7,
+"need": [
+[
+"2000-01",
+"2000-07"
+]
+],
+"why": "no prices for these months"
+},
+"UVN": {
+"months": 73,
+"need": [
+[
+"2001-03",
+"2007-03"
+]
+],
+"why": "no prices for these months"
+},
+"VAR": {
+"months": 37,
+"need": [
+[
+"2018-04",
+"2021-04"
+]
+],
+"why": "no prices for these months"
+},
+"VIAB": {
+"months": 21,
+"need": [
+[
+"2018-04",
+"2019-12"
+]
+],
+"why": "no prices for these months"
+},
+"VIAC": {
+"months": 26,
+"need": [
+[
+"2020-01",
+"2022-02"
+]
+],
+"why": "no prices for these months"
+},
+"VO": {
+"months": 12,
+"need": [
+[
+"2000-01",
+"2000-12"
+]
+],
+"why": "no prices for these months"
+},
+"VRTS": {
+"months": 63,
+"need": [
+[
+"2000-05",
+"2005-07"
+]
+],
+"why": "no prices for these months"
+},
+"VSTNQ": {
+"months": 67,
+"need": [
+[
+"2000-07",
+"2006-01"
+]
+],
+"why": "no prices for these months"
+},
+"WAMUQ": {
+"months": 105,
+"need": [
+[
+"2000-01",
+"2008-09"
+]
+],
+"why": "no prices for these months"
+},
+"WB": {
+"months": 109,
+"need": [
+[
+"2000-01",
+"2009-01"
+]
+],
+"why": "no prices for these months"
+},
+"WBA": {
+"months": 89,
+"need": [
+[
+"2018-04",
+"2025-08"
+]
+],
+"why": "no prices for these months"
+},
+"WBD": {
+"months": 55,
+"need": [
+[
+"2022-05",
+"2026-11"
+]
+],
+"why": "no prices for these months"
+},
+"WCG": {
+"months": 16,
+"need": [
+[
+"2018-10",
+"2020-01"
+]
+],
+"why": "no prices for these months"
+},
+"WCOEQ": {
+"months": 29,
+"need": [
+[
+"2000-01",
+"2002-05"
+]
+],
+"why": "no prices for these months"
+},
+"WFT": {
+"months": 43,
+"need": [
+[
+"2005-08",
+"2009-02"
+]
+],
+"why": "no prices for these months"
+},
+"WLA": {
+"months": 6,
+"need": [
+[
+"2000-01",
+"2000-06"
+]
+],
+"why": "no prices for these months"
+},
+"WLL": {
+"months": 26,
+"need": [
+[
+"2000-01",
+"2002-02"
+]
+],
+"why": "no prices for these months"
+},
+"WLP": {
+"months": 59,
+"need": [
+[
+"2000-01",
+"2004-11"
+]
+],
+"why": "no prices for these months"
+},
+"WNDXQ": {
+"months": 60,
+"need": [
+[
+"2000-01",
+"2004-12"
+]
+],
+"why": "no prices for these months"
+},
+"WRK": {
+"months": 76,
+"need": [
+[
+"2018-04",
+"2024-07"
+]
+],
+"why": "no prices for these months"
+},
+"WSC": {
+"months": 140,
+"need": [
+[
+"1999-11",
+"2011-06"
+]
+],
+"why": "Berkshire: Wesco Financial"
+},
+"WWY": {
+"months": 106,
+"need": [
+[
+"2000-01",
+"2008-10"
+]
+],
+"why": "no prices for these months"
+},
+"WYE": {
+"months": 118,
+"need": [
+[
+"2000-01",
+"2009-10"
+]
+],
+"why": "no prices for these months"
+},
+"XEC": {
+"months": 24,
+"need": [
+[
+"2018-04",
+"2020-03"
+]
+],
+"why": "no prices for these months"
+},
+"XL": {
+"months": 6,
+"need": [
+[
+"2018-04",
+"2018-09"
+]
+],
+"why": "no prices for these months"
+},
+"XLNX": {
+"months": 47,
+"need": [
+[
+"2018-04",
+"2022-02"
+]
+],
+"why": "no prices for these months"
+},
+"XTO": {
+"months": 66,
+"need": [
+[
+"2005-01",
+"2010-06"
+]
+],
+"why": "no prices for these months"
+},
+"YNR": {
+"months": 9,
+"need": [
+[
+"2000-02",
+"2000-10"
+]
+],
+"why": "no prices for these months"
+}
+}
