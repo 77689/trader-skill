@@ -1,0 +1,1500 @@
+{
+"ABMD": {
+"check_name": false,
+"end": "2023-01-03",
+"listed": [
+"1987-07-30",
+"2023-01-03"
+],
+"months": 55,
+"need": [
+[
+"2018-06",
+"2022-12"
+]
+],
+"sec_names": [
+"ABIOMED INC"
+],
+"start": "2017-04-27",
+"tiingo": "ABMD"
+},
+"AET": {
+"check_name": false,
+"end": "2018-11-28",
+"listed": [
+"1977-01-03",
+"2018-11-28"
+],
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"sec_names": [
+"AETNA INC /PA/"
+],
+"start": "2017-02-25",
+"tiingo": "AET"
+},
+"AGN": {
+"check_name": false,
+"end": "2020-05-08",
+"listed": [
+"1989-06-22",
+"2020-05-08"
+],
+"months": 26,
+"need": [
+[
+"2018-04",
+"2020-05"
+]
+],
+"sec_names": [
+"ALLERGAN PLC"
+],
+"start": "2017-02-25",
+"tiingo": "AGN"
+},
+"ALXN": {
+"check_name": false,
+"end": "2021-07-28",
+"listed": [
+"1996-02-28",
+"2021-07-28"
+],
+"months": 40,
+"need": [
+[
+"2018-04",
+"2021-07"
+]
+],
+"sec_names": [
+"ALEXION PHARMACEUTICALS INC"
+],
+"start": "2017-02-25",
+"tiingo": "ALXN"
+},
+"ANDV": {
+"check_name": false,
+"end": "2018-09-28",
+"listed": [
+"1983-04-06",
+"2018-09-28"
+],
+"months": 125,
+"need": [
+[
+"2007-10",
+"2017-08"
+],
+[
+"2018-04",
+"2018-09"
+]
+],
+"sec_names": [
+"ANDEAVOR"
+],
+"start": "2006-08-27",
+"tiingo": "ANDV"
+},
+"ANRZQ": {
+"check_name": false,
+"end": "2012-11-28",
+"listed": [
+"2005-02-15",
+"2016-07-27"
+],
+"months": 16,
+"need": [
+[
+"2011-07",
+"2012-10"
+]
+],
+"sec_names": [],
+"start": "2010-05-27",
+"tiingo": "ANRZQ"
+},
+"ANSS": {
+"check_name": true,
+"end": "2025-08-28",
+"listed": [
+"1996-06-21",
+"2026-11-13"
+],
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"sec_names": [
+"ANSYS INC"
+],
+"start": "2017-02-25",
+"tiingo": "ANSS"
+},
+"APC": {
+"check_name": false,
+"end": "2019-08-08",
+"listed": [
+"1986-09-09",
+"2019-08-08"
+],
+"months": 17,
+"need": [
+[
+"2018-04",
+"2019-08"
+]
+],
+"sec_names": [
+"ANADARKO PETROLEUM CORP"
+],
+"start": "2017-02-25",
+"tiingo": "APC"
+},
+"ATVI": {
+"check_name": false,
+"end": "2023-10-13",
+"listed": [
+"1993-10-25",
+"2023-10-13"
+],
+"months": 67,
+"need": [
+[
+"2018-04",
+"2023-10"
+]
+],
+"sec_names": [
+"ACTIVISION BLIZZARD, INC."
+],
+"start": "2017-02-25",
+"tiingo": "ATVI"
+},
+"AVB": {
+"check_name": false,
+"end": "2026-08-17",
+"listed": [
+"1994-03-11",
+"2026-08-17"
+],
+"months": 101,
+"need": [
+[
+"2018-04",
+"2026-08"
+]
+],
+"sec_names": [
+"AVALONBAY COMMUNITIES INC"
+],
+"start": "2017-02-25",
+"tiingo": "AVB"
+},
+"AYE": {
+"check_name": true,
+"end": "2011-03-31",
+"listed": [
+"2006-12-28",
+"2011-11-30"
+],
+"months": 122,
+"need": [
+[
+"2001-01",
+"2011-02"
+]
+],
+"sec_names": [
+"ALLEGHENY ENERGY, INC"
+],
+"start": "2006-12-28",
+"tiingo": "AYE"
+},
+"CA": {
+"check_name": false,
+"end": "2018-11-06",
+"listed": [
+"1984-09-07",
+"2018-11-06"
+],
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"sec_names": [
+"CA, INC."
+],
+"start": "2017-02-25",
+"tiingo": "CA"
+},
+"CELG": {
+"check_name": false,
+"end": "2019-11-22",
+"listed": [
+"1990-03-26",
+"2019-11-22"
+],
+"months": 20,
+"need": [
+[
+"2018-04",
+"2019-11"
+]
+],
+"sec_names": [
+"CELGENE CORP /DE/"
+],
+"start": "2017-02-25",
+"tiingo": "CELG"
+},
+"CERN": {
+"check_name": false,
+"end": "2022-07-29",
+"listed": [
+"1990-03-26",
+"2022-09-08"
+],
+"months": 51,
+"need": [
+[
+"2018-04",
+"2022-06"
+]
+],
+"sec_names": [
+"CERNER CORP /MO/"
+],
+"start": "2017-02-25",
+"tiingo": "CERN"
+},
+"CMA": {
+"check_name": false,
+"end": "2024-07-29",
+"listed": [
+"1990-03-26",
+"2026-01-30"
+],
+"months": 75,
+"need": [
+[
+"2018-04",
+"2024-06"
+]
+],
+"sec_names": [
+"COMERICA INC /NEW/"
+],
+"start": "2017-02-25",
+"tiingo": "CMA"
+},
+"COL": {
+"check_name": false,
+"end": "2018-11-26",
+"listed": [
+"2001-06-15",
+"2018-11-26"
+],
+"months": 8,
+"need": [
+[
+"2018-04",
+"2018-11"
+]
+],
+"sec_names": [
+"ROCKWELL COLLINS INC"
+],
+"start": "2017-02-25",
+"tiingo": "COL"
+},
+"CTLT": {
+"check_name": false,
+"end": "2024-12-18",
+"listed": [
+"2014-07-31",
+"2024-12-18"
+],
+"months": 51,
+"need": [
+[
+"2020-10",
+"2024-12"
+]
+],
+"sec_names": [
+"CATALENT, INC."
+],
+"start": "2019-08-28",
+"tiingo": "CTLT"
+},
+"CTRA": {
+"check_name": false,
+"end": "2026-05-06",
+"listed": [
+"1990-02-08",
+"2026-05-06"
+],
+"months": 55,
+"need": [
+[
+"2021-11",
+"2026-05"
+]
+],
+"sec_names": [],
+"start": "2020-09-27",
+"tiingo": "CTRA"
+},
+"CTXS": {
+"check_name": false,
+"end": "2022-11-02",
+"listed": [
+"1995-12-08",
+"2022-11-02"
+],
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"sec_names": [
+"CITRIX SYSTEMS INC"
+],
+"start": "2017-02-25",
+"tiingo": "CTXS"
+},
+"CXO": {
+"check_name": false,
+"end": "2021-01-15",
+"listed": [
+"2007-08-03",
+"2021-01-15"
+],
+"months": 34,
+"need": [
+[
+"2018-04",
+"2021-01"
+]
+],
+"sec_names": [
+"CONCHO RESOURCES INC"
+],
+"start": "2017-02-25",
+"tiingo": "CXO"
+},
+"DAY": {
+"check_name": false,
+"end": "2026-02-03",
+"listed": [
+"2018-04-26",
+"2026-02-03"
+],
+"months": 25,
+"need": [
+[
+"2024-02",
+"2026-02"
+]
+],
+"sec_names": [],
+"start": "2022-12-28",
+"tiingo": "DAY"
+},
+"DFS": {
+"check_name": false,
+"end": "2025-05-16",
+"listed": [
+"2007-06-14",
+"2025-05-16"
+],
+"months": 86,
+"need": [
+[
+"2018-04",
+"2025-05"
+]
+],
+"sec_names": [
+"DISCOVER FINANCIAL SERVICES"
+],
+"start": "2017-02-25",
+"tiingo": "DFS"
+},
+"DISCK": {
+"check_name": false,
+"end": "2022-05-29",
+"listed": [
+"2008-09-18",
+"2022-09-16"
+],
+"months": 49,
+"need": [
+[
+"2018-04",
+"2022-04"
+]
+],
+"sec_names": [],
+"start": "2017-02-25",
+"tiingo": "DISCK"
+},
+"DISH": {
+"check_name": false,
+"end": "2023-07-29",
+"listed": [
+"1995-06-21",
+"2024-01-09"
+],
+"months": 63,
+"need": [
+[
+"2018-04",
+"2023-06"
+]
+],
+"sec_names": [
+"DISH NETWORK CORP"
+],
+"start": "2017-02-25",
+"tiingo": "DISH"
+},
+"DRE": {
+"check_name": false,
+"end": "2022-10-03",
+"listed": [
+"1987-11-05",
+"2022-10-03"
+],
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"sec_names": [
+"DUKE REALTY CORP"
+],
+"start": "2017-02-25",
+"tiingo": "DRE"
+},
+"EA": {
+"check_name": false,
+"end": "2026-08-04",
+"listed": [
+"1990-03-26",
+"2026-08-04"
+],
+"months": 101,
+"need": [
+[
+"2018-04",
+"2026-08"
+]
+],
+"sec_names": [
+"ELECTRONIC ARTS INC."
+],
+"start": "2017-02-25",
+"tiingo": "EA"
+},
+"ESRX": {
+"check_name": false,
+"end": "2018-12-20",
+"listed": [
+"1992-06-09",
+"2018-12-20"
+],
+"months": 9,
+"need": [
+[
+"2018-04",
+"2018-12"
+]
+],
+"sec_names": [
+"EXPRESS SCRIPTS HOLDING CO."
+],
+"start": "2017-02-25",
+"tiingo": "ESRX"
+},
+"ETFC": {
+"check_name": false,
+"end": "2020-10-02",
+"listed": [
+"1996-08-16",
+"2020-10-02"
+],
+"months": 31,
+"need": [
+[
+"2018-04",
+"2020-10"
+]
+],
+"sec_names": [
+"E TRADE FINANCIAL CORP"
+],
+"start": "2017-02-25",
+"tiingo": "ETFC"
+},
+"EVHC": {
+"check_name": false,
+"end": "2018-11-28",
+"listed": [
+"2013-08-14",
+"2018-12-14"
+],
+"months": 7,
+"need": [
+[
+"2018-04",
+"2018-10"
+]
+],
+"sec_names": [
+"ENVISION HEALTHCARE CORP"
+],
+"start": "2017-02-25",
+"tiingo": "EVHC"
+},
+"FDXF": {
+"check_name": true,
+"end": "2026-11-13",
+"listed": [
+"2026-05-27",
+"2026-11-13"
+],
+"months": 6,
+"need": [
+[
+"2026-06",
+"2026-11"
+]
+],
+"sec_names": [],
+"start": "2026-05-27",
+"tiingo": "FDXF"
+},
+"FL": {
+"check_name": false,
+"end": "2019-09-28",
+"listed": [
+"1970-01-02",
+"2025-09-05"
+],
+"months": 17,
+"need": [
+[
+"2018-04",
+"2019-08"
+]
+],
+"sec_names": [
+"FOOT LOCKER INC"
+],
+"start": "2017-02-25",
+"tiingo": "FL"
+},
+"FLIR": {
+"check_name": false,
+"end": "2021-05-14",
+"listed": [
+"1993-06-22",
+"2021-05-14"
+],
+"months": 38,
+"need": [
+[
+"2018-04",
+"2021-05"
+]
+],
+"sec_names": [
+"FLIR SYSTEMS INC"
+],
+"start": "2017-02-25",
+"tiingo": "FLIR"
+},
+"GGP": {
+"check_name": false,
+"end": "2018-08-28",
+"listed": [
+"1993-04-08",
+"2018-08-28"
+],
+"months": 5,
+"need": [
+[
+"2018-04",
+"2018-08"
+]
+],
+"sec_names": [
+"GENERAL GROWTH PROPERTIES, INC."
+],
+"start": "2017-02-25",
+"tiingo": "GGP"
+},
+"HBI": {
+"check_name": false,
+"end": "2022-01-28",
+"listed": [
+"2006-09-06",
+"2025-12-01"
+],
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"sec_names": [
+"HANESBRANDS INC."
+],
+"start": "2017-02-25",
+"tiingo": "HBI"
+},
+"HES": {
+"check_name": false,
+"end": "2025-07-18",
+"listed": [
+"1983-04-06",
+"2025-07-18"
+],
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"sec_names": [
+"HESS CORP"
+],
+"start": "2017-02-25",
+"tiingo": "HES"
+},
+"HOLX": {
+"check_name": false,
+"end": "2026-04-07",
+"listed": [
+"1990-03-26",
+"2026-04-07"
+],
+"months": 97,
+"need": [
+[
+"2018-04",
+"2026-04"
+]
+],
+"sec_names": [
+"HOLOGIC INC"
+],
+"start": "2017-02-25",
+"tiingo": "HOLX"
+},
+"HONA": {
+"check_name": true,
+"end": "2026-11-13",
+"listed": [
+"2026-06-29",
+"2026-11-13"
+],
+"months": 5,
+"need": [
+[
+"2026-07",
+"2026-11"
+]
+],
+"sec_names": [],
+"start": "2026-06-29",
+"tiingo": "HONA"
+},
+"HPC": {
+"check_name": true,
+"end": "2008-11-24",
+"listed": [
+"2006-12-28",
+"2008-11-24"
+],
+"months": 107,
+"need": [
+[
+"2000-01",
+"2008-11"
+]
+],
+"sec_names": [],
+"start": "2006-12-28",
+"tiingo": "HPC"
+},
+"IPG": {
+"check_name": false,
+"end": "2025-11-26",
+"listed": [
+"1987-11-05",
+"2025-11-26"
+],
+"months": 92,
+"need": [
+[
+"2018-04",
+"2025-11"
+]
+],
+"sec_names": [
+"INTERPUBLIC GROUP OF COMPANIES, INC."
+],
+"start": "2017-02-25",
+"tiingo": "IPG"
+},
+"JNPR": {
+"check_name": false,
+"end": "2025-07-02",
+"listed": [
+"1999-06-25",
+"2025-07-02"
+],
+"months": 88,
+"need": [
+[
+"2018-04",
+"2025-07"
+]
+],
+"sec_names": [
+"JUNIPER NETWORKS INC"
+],
+"start": "2017-02-25",
+"tiingo": "JNPR"
+},
+"JWN": {
+"check_name": false,
+"end": "2020-07-29",
+"listed": [
+"1986-07-09",
+"2025-05-20"
+],
+"months": 27,
+"need": [
+[
+"2018-04",
+"2020-06"
+]
+],
+"sec_names": [
+"NORDSTROM INC"
+],
+"start": "2017-02-25",
+"tiingo": "JWN"
+},
+"K": {
+"check_name": false,
+"end": "2025-12-11",
+"listed": [
+"1984-12-17",
+"2025-12-11"
+],
+"months": 93,
+"need": [
+[
+"2018-04",
+"2025-12"
+]
+],
+"sec_names": [
+"KELLOGG CO"
+],
+"start": "2017-02-25",
+"tiingo": "K"
+},
+"KATE": {
+"check_name": false,
+"end": "2009-01-28",
+"listed": [
+"1981-06-09",
+"2017-07-12"
+],
+"months": 108,
+"need": [
+[
+"2000-01",
+"2008-12"
+]
+],
+"sec_names": [],
+"start": "1998-11-27",
+"tiingo": "KATE"
+},
+"KSU": {
+"check_name": false,
+"end": "2021-12-13",
+"listed": [
+"1987-11-05",
+"2021-12-13"
+],
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"sec_names": [
+"KANSAS CITY SOUTHERN"
+],
+"start": "2017-02-25",
+"tiingo": "KSU"
+},
+"KVUE": {
+"check_name": false,
+"end": "2026-10-30",
+"listed": [
+"2023-05-04",
+"2026-10-30"
+],
+"months": 39,
+"need": [
+[
+"2023-09",
+"2026-11"
+]
+],
+"sec_names": [],
+"start": "2023-05-04",
+"tiingo": "KVUE"
+},
+"LEG": {
+"check_name": false,
+"end": "2022-01-28",
+"listed": [
+"1987-11-05",
+"2026-08-27"
+],
+"months": 45,
+"need": [
+[
+"2018-04",
+"2021-12"
+]
+],
+"sec_names": [
+"LEGGETT & PLATT INC"
+],
+"start": "2017-02-25",
+"tiingo": "LEG"
+},
+"MFE": {
+"check_name": false,
+"end": "2011-03-01",
+"listed": [
+"2006-12-28",
+"2011-03-01"
+],
+"months": 26,
+"need": [
+[
+"2009-01",
+"2011-02"
+]
+],
+"sec_names": [
+"MCAFEE, INC."
+],
+"start": "2007-11-28",
+"tiingo": "MFE"
+},
+"MHS": {
+"check_name": true,
+"end": "2012-05-29",
+"listed": [
+"2006-12-28",
+"2013-04-10"
+],
+"months": 104,
+"need": [
+[
+"2003-09",
+"2012-04"
+]
+],
+"sec_names": [
+"MEDCO HEALTH SOLUTIONS INC"
+],
+"start": "2006-12-28",
+"tiingo": "MHS"
+},
+"MRO": {
+"check_name": false,
+"end": "2024-11-22",
+"listed": [
+"1970-01-02",
+"2024-11-22"
+],
+"months": 80,
+"need": [
+[
+"2018-04",
+"2024-11"
+]
+],
+"sec_names": [
+"MARATHON OIL CORP"
+],
+"start": "2017-02-25",
+"tiingo": "MRO"
+},
+"MXIM": {
+"check_name": false,
+"end": "2021-09-01",
+"listed": [
+"1990-03-26",
+"2021-09-01"
+],
+"months": 32,
+"need": [
+[
+"2019-01",
+"2021-08"
+]
+],
+"sec_names": [
+"MAXIM INTEGRATED PRODUCTS INC"
+],
+"start": "2017-11-27",
+"tiingo": "MXIM"
+},
+"NBL": {
+"check_name": false,
+"end": "2020-10-06",
+"listed": [
+"1982-01-04",
+"2020-10-06"
+],
+"months": 31,
+"need": [
+[
+"2018-04",
+"2020-10"
+]
+],
+"sec_names": [
+"NOBLE ENERGY INC"
+],
+"start": "2017-02-25",
+"tiingo": "NBL"
+},
+"NFX": {
+"check_name": false,
+"end": "2019-02-14",
+"listed": [
+"1993-11-12",
+"2019-02-14"
+],
+"months": 11,
+"need": [
+[
+"2018-04",
+"2019-02"
+]
+],
+"sec_names": [
+"NEWFIELD EXPLORATION CO /DE/"
+],
+"start": "2017-02-25",
+"tiingo": "NFX"
+},
+"NLSN": {
+"check_name": false,
+"end": "2022-10-11",
+"listed": [
+"2011-01-27",
+"2022-10-11"
+],
+"months": 55,
+"need": [
+[
+"2018-04",
+"2022-10"
+]
+],
+"sec_names": [],
+"start": "2017-02-25",
+"tiingo": "NLSN"
+},
+"PBCT": {
+"check_name": false,
+"end": "2022-04-04",
+"listed": [
+"1990-03-26",
+"2022-04-04"
+],
+"months": 49,
+"need": [
+[
+"2018-04",
+"2022-04"
+]
+],
+"sec_names": [
+"PEOPLE'S UNITED FINANCIAL, INC."
+],
+"start": "2017-02-25",
+"tiingo": "PBCT"
+},
+"PXD": {
+"check_name": false,
+"end": "2024-05-03",
+"listed": [
+"1997-08-08",
+"2024-05-03"
+],
+"months": 74,
+"need": [
+[
+"2018-04",
+"2024-05"
+]
+],
+"sec_names": [
+"PIONEER NATURAL RESOURCES CO"
+],
+"start": "2017-02-25",
+"tiingo": "PXD"
+},
+"QRVO": {
+"check_name": false,
+"end": "2025-01-28",
+"listed": [
+"2015-01-02",
+"2026-10-05"
+],
+"months": 81,
+"need": [
+[
+"2018-04",
+"2024-12"
+]
+],
+"sec_names": [],
+"start": "2017-02-25",
+"tiingo": "QRVO"
+},
+"RHT": {
+"check_name": false,
+"end": "2019-07-08",
+"listed": [
+"1999-08-11",
+"2019-07-08"
+],
+"months": 16,
+"need": [
+[
+"2018-04",
+"2019-07"
+]
+],
+"sec_names": [
+"RED HAT INC"
+],
+"start": "2017-02-25",
+"tiingo": "RHT"
+},
+"RTN": {
+"check_name": false,
+"end": "2020-04-03",
+"listed": [
+"1981-12-31",
+"2020-04-03"
+],
+"months": 25,
+"need": [
+[
+"2018-04",
+"2020-04"
+]
+],
+"sec_names": [
+"RAYTHEON CO/"
+],
+"start": "2017-02-25",
+"tiingo": "RTN"
+},
+"SBNY": {
+"check_name": true,
+"end": "2023-04-28",
+"listed": [
+"2004-03-23",
+"2026-11-13"
+],
+"months": 15,
+"need": [
+[
+"2022-01",
+"2023-03"
+]
+],
+"sec_names": [],
+"start": "2020-11-27",
+"tiingo": "SBNY"
+},
+"SCG": {
+"check_name": false,
+"end": "2018-12-31",
+"listed": [
+"1987-12-30",
+"2018-12-31"
+],
+"months": 10,
+"need": [
+[
+"2018-04",
+"2019-01"
+]
+],
+"sec_names": [
+"SCANA CORP"
+],
+"start": "2017-02-25",
+"tiingo": "SCG"
+},
+"SEE": {
+"check_name": false,
+"end": "2024-01-28",
+"listed": [
+"1987-12-30",
+"2026-04-09"
+],
+"months": 69,
+"need": [
+[
+"2018-04",
+"2023-12"
+]
+],
+"sec_names": [
+"SEALED AIR CORP/DE"
+],
+"start": "2017-02-25",
+"tiingo": "SEE"
+},
+"SII": {
+"check_name": true,
+"end": "2010-03-31",
+"listed": [
+"2009-08-11",
+"2020-06-29"
+],
+"months": 40,
+"need": [
+[
+"2006-11",
+"2010-02"
+]
+],
+"sec_names": [
+"SMITH INTERNATIONAL INC"
+],
+"start": "2009-08-11",
+"tiingo": "SII"
+},
+"SRCL": {
+"check_name": false,
+"end": "2019-01-28",
+"listed": [
+"1996-08-23",
+"2024-11-04"
+],
+"months": 9,
+"need": [
+[
+"2018-04",
+"2018-12"
+]
+],
+"sec_names": [
+"STERICYCLE INC"
+],
+"start": "2017-02-25",
+"tiingo": "SRCL"
+},
+"STI": {
+"check_name": false,
+"end": "2019-12-06",
+"listed": [
+"1987-12-30",
+"2019-12-06"
+],
+"months": 21,
+"need": [
+[
+"2018-04",
+"2019-12"
+]
+],
+"sec_names": [
+"SUNTRUST BANKS INC"
+],
+"start": "2017-02-25",
+"tiingo": "STI"
+},
+"TIF": {
+"check_name": false,
+"end": "2021-01-08",
+"listed": [
+"1987-12-30",
+"2021-01-08"
+],
+"months": 34,
+"need": [
+[
+"2018-04",
+"2021-01"
+]
+],
+"sec_names": [
+"TIFFANY & CO"
+],
+"start": "2017-02-25",
+"tiingo": "TIF"
+},
+"TWTR": {
+"check_name": false,
+"end": "2022-10-28",
+"listed": [
+"2013-11-07",
+"2022-10-28"
+],
+"months": 52,
+"need": [
+[
+"2018-07",
+"2022-10"
+]
+],
+"sec_names": [
+"TWITTER, INC."
+],
+"start": "2017-05-27",
+"tiingo": "TWTR"
+},
+"VAR": {
+"check_name": false,
+"end": "2021-04-16",
+"listed": [
+"1988-01-05",
+"2021-04-16"
+],
+"months": 37,
+"need": [
+[
+"2018-04",
+"2021-04"
+]
+],
+"sec_names": [
+"VARIAN MEDICAL SYSTEMS INC",
+"VAREX IMAGING CORP"
+],
+"start": "2017-02-25",
+"tiingo": "VAR"
+},
+"VIAB": {
+"check_name": false,
+"end": "2019-12-04",
+"listed": [
+"2005-12-05",
+"2019-12-04"
+],
+"months": 21,
+"need": [
+[
+"2018-04",
+"2019-12"
+]
+],
+"sec_names": [
+"VIACOM INC."
+],
+"start": "2017-02-25",
+"tiingo": "VIAB"
+},
+"WBA": {
+"check_name": false,
+"end": "2025-08-28",
+"listed": [
+"1985-07-01",
+"2025-08-28"
+],
+"months": 89,
+"need": [
+[
+"2018-04",
+"2025-08"
+]
+],
+"sec_names": [
+"WALGREENS BOOTS ALLIANCE, INC."
+],
+"start": "2017-02-25",
+"tiingo": "WBA"
+},
+"WBD": {
+"check_name": false,
+"end": "2026-10-07",
+"listed": [
+"2005-07-08",
+"2026-10-07"
+],
+"months": 55,
+"need": [
+[
+"2022-05",
+"2026-11"
+]
+],
+"sec_names": [],
+"start": "2021-03-27",
+"tiingo": "WBD"
+},
+"WCG": {
+"check_name": false,
+"end": "2020-01-23",
+"listed": [
+"2004-07-01",
+"2020-01-23"
+],
+"months": 16,
+"need": [
+[
+"2018-10",
+"2020-01"
+]
+],
+"sec_names": [
+"WELLCARE HEALTH PLANS, INC."
+],
+"start": "2017-08-27",
+"tiingo": "WCG"
+},
+"WRK": {
+"check_name": false,
+"end": "2024-07-05",
+"listed": [
+"2015-06-24",
+"2024-07-05"
+],
+"months": 76,
+"need": [
+[
+"2018-04",
+"2024-07"
+]
+],
+"sec_names": [
+"WESTROCK CO",
+"WESTROCK CO"
+],
+"start": "2017-02-25",
+"tiingo": "WRK"
+},
+"XEC": {
+"check_name": false,
+"end": "2020-04-28",
+"listed": [
+"2002-09-25",
+"2021-10-04"
+],
+"months": 24,
+"need": [
+[
+"2018-04",
+"2020-03"
+]
+],
+"sec_names": [
+"CIMAREX ENERGY CO"
+],
+"start": "2017-02-25",
+"tiingo": "XEC"
+},
+"XL": {
+"check_name": false,
+"end": "2018-09-13",
+"listed": [
+"1991-07-19",
+"2018-09-13"
+],
+"months": 6,
+"need": [
+[
+"2018-04",
+"2018-09"
+]
+],
+"sec_names": [],
+"start": "2017-02-25",
+"tiingo": "XL"
+},
+"XLNX": {
+"check_name": false,
+"end": "2022-02-14",
+"listed": [
+"1990-06-18",
+"2022-02-14"
+],
+"months": 47,
+"need": [
+[
+"2018-04",
+"2022-02"
+]
+],
+"sec_names": [
+"XILINX INC"
+],
+"start": "2017-02-25",
+"tiingo": "XLNX"
+},
+"XTO": {
+"check_name": false,
+"end": "2010-07-29",
+"listed": [
+"2001-01-02",
+"2013-02-07"
+],
+"months": 66,
+"need": [
+[
+"2005-01",
+"2010-06"
+]
+],
+"sec_names": [
+"XTO ENERGY INC"
+],
+"start": "2003-11-28",
+"tiingo": "XTO"
+}
+}

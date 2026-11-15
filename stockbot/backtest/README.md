@@ -43,3 +43,12 @@ wayback_clean/. `build_data.py` uses them as the last price source. Index covera
 to 76% in 2000 and from 88% to 92% in 2008; the results barely moved (six strategies since 2000
 still 8.7% a year, worst drop -28%), which is the useful finding: the earlier numbers were not an
 artifact of the missing companies.
+
+## Tiingo (free account), for the companies that closed after 2018
+
+`tiingo_fetch.py` runs on the phone with your free Tiingo key (saved once with --save-key, kept in
+~/.tiingo_key, never uploaded). `tiingo_targets.json` lists the 76 still-missing S&P 500 companies
+that Tiingo's public ticker list has for the right dates, mostly bought or closed 2018-2023. One
+request every 75 seconds (free plan: 50 an hour); results go to ~/stockbot-data/tiingo/ and up with
+the stock sync. A ticker later reused by another company is caught by comparing names with SEC's
+records. Offline tests: `stockbot/tests/test_tiingo.py`.
