@@ -207,6 +207,7 @@ def sim_trades(uni, sw, bo, low10, start=2500.0, allow=None, rank="vol", risk_pc
                     st["cool"][s] = d.isoformat()
                 del pos[s]
             st["eq"][k] = st["cash"] + sum(p["sh"] * CF[s, k] for s, p in pos.items())
+            st.setdefault("ch", np.zeros(ND))[k] = st["cash"]          # cash left idle at the close
     return S
 
 

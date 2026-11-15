@@ -272,11 +272,14 @@ is slow the glow turns itself off (the "glow" button turns it back on).
 - **26-year test** (`stockbot/backtest/`, results in `backtest.json`, shown on the Charts tab): the
   bot's rules replayed from 2000 to 2026 on the companies that were in the S&P 500 at the time
   (member list from fja05680/sp500, prices from Yahoo plus the Quandl WIKI archive for dead
-  companies). The five price strategies run from 2000. Screener and Berkshire need SEC filings
-  with dates, so they run from 2011 and 2013: the Screener's numbers are rebuilt as they stood on
-  each day from SEC's companyfacts filing dates, and Berkshire's top 5 comes from every 13F since
-  2013 read with the bot's own copycat tool. All seven together since Aug 2013: 10.1% a year with
-  a -22% worst drop, against SPY's 14.1% and -34%.
+  companies). Six strategies run from 2000: the five price strategies and Berkshire, whose top 5
+  comes from every 13F since 1999 (old plain-text filings parsed directly, XML ones since 2013 read
+  with the bot's own copycat tool). The Screener needs SEC numbers with filing dates, which start in
+  2011; it is rebuilt as the numbers stood on each day, including companies that no longer exist
+  (their old tickers matched to SEC numbers through SEC's financial statement data sets), with the
+  stock-split fix and the last-4-quarters profit check. Six together since 2000, with idle cash
+  parked: 8.7% a year, worst drop -28%, against SPY's 8.2% and -55%. All seven since 2011: 11.4%
+  and -24% against SPY's 13.7% and -34%.
 - **Swing and breakout now scan about 100 stocks** (the most-traded S&P 500 names) instead of 30
   hand-picked giants, and **open new trades only while SPY is above its 200-day average**
   (`trade_market_filter_days`, 0 turns it off; exits are never blocked). In the test this took

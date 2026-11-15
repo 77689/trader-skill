@@ -16,6 +16,11 @@ Order:
 4. `fetch_facts.py`                company numbers with filing dates from SEC companyfacts
 5. `fetch_brk2.py`                 Berkshire's top 5 at every 13F since 2013 (the bot's edgar13f.py + OpenFIGI)
 6. `stage2.py`                     Screener and Berkshire, then all seven together, written into backtest.json
-7. `make_json.py`, `report.py`     the numbers for the dashboard
+7. `make_json.py`, `report.py`     the numbers for the dashboard (first version)
+8. `fetch_brk_old.py`, `parse_brk_old.py`  Berkshire's plain-text 13Fs, 1999-2013, and their top 5
+9. `fsds_tickers.py`, `add_dead.py` old tickers -> SEC numbers from SEC's financial statement data sets
+                                   (read with range requests), then those companies' numbers and prices
+10. `stage3.py`                    the bot as it runs now (parking included) -> backtest.json
+    `cashtest.py`                  the idle-cash study
 
 Nothing here holds a key or a password. The SEC contact header is read from the bot's config file.

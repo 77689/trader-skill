@@ -29,6 +29,7 @@ def tool(name, path):
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
     return m
 screen = tool("screen", "trader-screener/screen.py")
+analyst = tool("analyst_facts", "trader-analyst/facts.py")
 rebalance = tool("rebalance", "trader-rebalance/rebalance.py")
 sys.path.insert(0, os.path.join(REPO, "stockbot"))
 import quality
@@ -169,6 +170,26 @@ def metrics(universe, k, fix_splits):
     return out, year
 
 
+_raw = {}
+def ttm_eps(name, day):
+    """Sum of the last 4 quarters' diluted EPS as the analyst tool would have computed it on `day`."""
+    if name not in _raw:
+        rows = []
+        for cik in CIKS.get(name, []):
+            try:
+                rows += json.load(open(os.path.join(H, "facts", "%d.json" % cik)))["facts"].get("EarningsPerShareDiluted", [])
+            except Exception:
+                pass
+        _raw[name] = rows
+    facts = [{"start": s0, "end": e0, "val": v, "filed": f0, "form": fm or "", "fp": fp}
+             for s0, e0, v, f0, fr, fm, fp in _raw[name] if f0 and f0 <= day and s0 and v is not None]
+    q, _ = analyst.series({"facts": {"us-gaap": {"EarningsPerShareDiluted": {"units": {"USD/shares": facts}}}}}, "eps_diluted", True)
+    last4 = sorted(q)[-4:]
+    if len(last4) == 4 and (datetime.date.fromisoformat(last4[-1]) - datetime.date.fromisoformat(last4[0])).days < 300:
+        return sum(q[e]["value"] for e in last4)
+    return None
+
+
 def members(k):
     """S&P 500 members on day k that still have a ticker (so an SEC number) today."""
     got = E.D["resolve"].get(CAL[k][:7], {})
@@ -185,7 +206,7 @@ def quarter_starts(first="2011-04"):          # the first quarter after SEC's XB
     return out
 
 
-def screener_schedule(mode, fix_splits, top=10):
+def screener_schedule(mode, fix_splits, top=10, ttm=True):
     """{day index: {ticker: weight}} and a log of picks."""
     sched, log = {}, []
     spec = dict(quality.RULES)
@@ -203,18 +224,25 @@ def screener_schedule(mode, fix_splits, top=10):
             keep = set(sorted(dv, key=lambda t: -(dv[t] if np.isfinite(dv[t]) else 0))[:120])
             rows = [r for r in rows if r["ticker"] in keep]
         res = screen.screen(rows, spec)
-        picks = [r["ticker"] for r in res if r["passed"]][:top]
+        cands = [r["ticker"] for r in res if r["passed"]][:top + 5]
+        if ttm:
+            losing = [t for t in cands if (lambda v: v is not None and v <= 0)(ttm_eps(t, CAL[k]))]
+            picks = [t for t in cands if t not in losing][:top]
+        else:
+            losing, picks = [], cands[:top]
         if len(picks) < 5:
             continue
         sched[k] = {t: 100.0 / len(picks) for t in picks}
-        log.append({"day": CAL[k], "year": year, "listed": len(uni), "ranked": sum(1 for r in res if r["passed"]), "picks": picks})
+        log.append({"day": CAL[k], "year": year, "listed": len(uni), "ranked": sum(1 for r in res if r["passed"]), "picks": picks,
+                    "dropped_for_losses": losing})
     return sched, log
 
 
 def berkshire_schedule(corrected=True):
     sched, log = {}, []
     if corrected:
-        hist = json.load(open(os.path.join(H, "brk_history.json")))
+        f_all = os.path.join(H, "brk_history_all.json")
+        hist = json.load(open(f_all if os.path.exists(f_all) else os.path.join(H, "brk_history.json")))
     else:                                                # what the tool gave before the ticker fix (name matching only)
         hist = []
         for f in json.load(open(os.path.join(H, "brk_history.json"))):
@@ -227,6 +255,7 @@ def berkshire_schedule(corrected=True):
         k = next((i for i, d in enumerate(CAL) if d > f["filed"]), None)      # the next trading day
         if k is None:
             continue
+        k = max(k, E.K0)                                 # filed before the test starts: held from day one
         w = {t: wt for t, wt in f["weights"] if t in IDX and np.isfinite(E.CF[IDX[t], k - 1])}
         if len(w) < 3:
             continue

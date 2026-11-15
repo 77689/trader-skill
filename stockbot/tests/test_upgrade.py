@@ -172,7 +172,7 @@ check("scorecard line for swing has win rate, return and worst drop", "wins" in 
 check("scorecard line for trend has no win rate", "wins" not in backtest.expect("trend") and "a year" in backtest.expect("trend"))
 check("unknown strategy -> nothing", backtest.expect("berkshire") == "" or "a year" in backtest.expect("berkshire"))
 sec = backtest.section()
-check("panel has the chart, the table and the caveats", "<svg" in sec and "All 5 together" in sec and "not a promise" in sec, sec[:120])
+check("panel has the chart, the table and the caveats", "<svg" in sec and "6 together" in sec and "not a promise" in sec, sec[:120])
 check("panel shows old settings beside new for swing", sec.count("old settings") >= 2)
 blob = json.loads(__import__("html").unescape(sec.split("data-y='")[1].split("'>")[0]))
 check("hover data matches the lines", blob["b"][1:] == d["lines"]["bot"] and blob["s"][1:] == d["lines"]["spy"] and blob["y"][0] == "start")
@@ -269,10 +269,10 @@ bst["berkshire_checked"] = 0
 stockbot.berkshire(cfg, None, bst, False)
 check("the warning is not repeated for the same filing", len([l for l in logs if "WARNING no ticker found" in l]) == 1, logs)
 check("screener and berkshire have their own lines for the scorecard",
-      "15-yr test" in backtest.expect("screener") and "SPY" in backtest.expect("screener") and "13-yr test" in backtest.expect("berkshire"))
-check("the panel has the two shorter tests and all seven together", "the two that need company filings" in sec.replace("\n", "") or
-      "the two that need company filings" in backtest.section())
-check("... with the all-seven line", "All 7" in backtest.section() and "All seven together since" in backtest.section())
+      "15-yr test" in backtest.expect("screener") and "SPY" in backtest.expect("screener") and "26-yr test" in backtest.expect("berkshire"))
+check("the panel has the Screener's shorter test", "when the Screener's data starts" in backtest.section())
+check("... with the all-seven line", "All 7" in backtest.section() and "All seven since" in backtest.section())
+check("... and says which Berkshire holdings had no prices", "Gillette" in backtest.section())
 
 # ---- idle cash parked in SPY / BIL (swing and breakout)
 stockbot.save("ledger.json", []); stockbot.save("stops.json", {}); stockbot.save("stopouts.json", [])
