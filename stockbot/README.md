@@ -250,3 +250,17 @@ loss on what is still held. A sale counts as a trade, measured against the
 average cost of the shares sold, so the banked dollars equal the bot's own
 realized number exactly. Each row says "too few to judge" until it has 20
 sales. Below it: the last 10 sales with the reason for each.
+
+## City tab (3D)
+
+`city.py` draws the bot as a neon city you can spin with your finger. Each
+strategy is a district on a ring around the Vault (the whole bot's dollars
+made). Every stock it holds is a building: taller = more money in it, green
+or red = up or down on it. Tap a building for its numbers and a link to its
+chart. Trades fire beams and shockwaves as they happen: cyan for a buy, green
+"PROFIT LOCKED" for a sale at a gain, red "STOPPED OUT" for a stop. Replay
+plays every trade since the start in about 30 seconds over the bot-vs-SPY
+line. Prices refresh every 10 s and trades every 20 s. Read-only.
+
+It uses three.js from a CDN, so the first load needs internet. If the phone
+is slow the glow turns itself off (the "glow" button turns it back on).

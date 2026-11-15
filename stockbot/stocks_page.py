@@ -16,6 +16,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import stockbot  # noqa: E402  (only reads paths and helpers, starts nothing)
 import charts  # noqa: E402
+import city  # noqa: E402
 import fastnews  # noqa: E402
 import golive  # noqa: E402
 import scorecard  # noqa: E402
@@ -98,7 +99,7 @@ def table(headers, rows, empty="nothing yet", cls=""):
 
 
 SHARED = False                     # True while serving a request that came through the share link
-PUBLIC = ("/stocks", "/s", "/filings", "/charts", "/live")
+PUBLIC = ("/stocks", "/s", "/filings", "/charts", "/live", "/city", "/city.json")
 
 
 def guard(pathname, headers):
@@ -127,11 +128,11 @@ def tabs(active):
         return '<a href="%s"%s>%s</a>' % (href, ' class="on"' if key == active else "", label)
     return '<div class="tabs">%s%s%s</div>' % ("" if SHARED else a("/", "Memecoins", "memebot"),
                                               a("/stocks", "Stocks", "stocks"), a("/charts", "Charts", "charts")
-                                              + a("/filings", "Filings +", "filings"))
+                                              + a("/city", "City", "city") + a("/filings", "Filings +", "filings"))
 
 
 def handles(pathname):
-    return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts", "/live")
+    return pathname in ("/stocks", "/s", "/approve", "/filings", "/charts", "/live", "/city", "/city.json")
 
 
 def ny_time(iso):
@@ -740,6 +741,10 @@ def render(pathname, query, css):
     if pathname == "/live":
         d = stockbot.load("live.json", {})
         return json.dumps({"time": d.get("time"), "session": d.get("session"), "prices": charts.live()})
+    if pathname == "/city":
+        return city.page(tabs("city"))
+    if pathname == "/city.json":
+        return json.dumps(city.data())
     if pathname == "/filings":
         body = filings_page(cfg)
         refresh = "<meta http-equiv='refresh' content='60'>"
