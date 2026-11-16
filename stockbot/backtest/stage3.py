@@ -59,7 +59,8 @@ scr0, ks0, _ = S2.simulate(sched_s0)
 drops = sum(len(x["dropped_for_losses"]) for x in log_s)
 print("screener from", CAL[ks], "quarters", len(log_s), "orders", ns, "| picks dropped for losing money:", drops, flush=True)
 
-BUD = {"berkshire": 2500, "screener": 2500, "swing": 2500, "breakout": 2500, "momentum": 2500, "trend": 2500, "tqqq": 1000}
+# the live split since Nov 15 2026 (was berkshire 2500, tqqq 1000; see splits.py)
+BUD = {"berkshire": 1000, "screener": 2500, "swing": 2500, "breakout": 2500, "momentum": 2500, "trend": 2500, "tqqq": 2500}
 parts = {"swing": parked(new["swing"]), "breakout": parked(new["breakout"]), "momentum": st1["etf"]["momentum"],
          "trend": st1["etf"]["trend"], "tqqq": st1["etf"]["tqqq"], "berkshire": brk, "screener": scr}
 parts_old = dict(parts, swing=old["swing"]["eq"], breakout=old["breakout"]["eq"])
@@ -126,6 +127,7 @@ out = {
     "beat_spy_years": int(sum(s6["by_year"][y] > ss["by_year"][y] for y in yrs)),
     "by_year": {y: [round(s6["by_year"][y] * 100, 1), round(ss["by_year"][y] * 100, 1)] for y in yrs},
     "down_years": {y: [int(round(s6["by_year"][y] * 100)), int(round(ss["by_year"][y] * 100))] for y in yrs if ss["by_year"][y] < 0},
+    "split_note": "The split (Berkshire $1,000, TQQQ $2,500 since Nov 15 2026) was picked from this same history, which flatters it: picked on one half and tested on the other, the change gained 0.2 to 0.7 points a year.",
     "notes": {"berkshire_no_prices": sorted(gone.values()), "berkshire_no_prices_pct": round(float(np.mean(miss)), 1),
               "screener_dropped_for_losses": drops},
 }

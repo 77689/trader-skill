@@ -141,7 +141,7 @@ def section(e=html.escape):
             '<div class="cap">$%s on %s in six of the seven strategies (all but the Screener, whose data starts in 2011), split '
             'the way the bot splits it, reset to that split each January, with idle Swing and Breakout cash parked the way the '
             'bot does it now. The bot ended at %s (%s a year), SPY at %s (%s a year). The bot beat SPY in %d of %d years: it '
-            'earns less in good years and loses much less in bad ones. Tap the chart for a year.</div></section>'
+            'earns less in good years and loses much less in bad ones. Tap the chart for a year.%s</div></section>'
             '<section><div class="bt">%s</div>%s'
             '<h3 style="margin-top:14px">the years the market fell</h3>'
             '<div class="bt bt3"><span class="hd l">year</span><span class="hd">bot</span><span class="hd">spy</span>%s</div>'
@@ -156,7 +156,7 @@ def section(e=html.escape):
             '%s%% in 2019. A test of the past is not a promise.'
             '</div></section></div>'
             % (BOT, _k(end_b), SPY, _k(end_s), chart(d), format(d["start_usd"], ","), e(d["from"]), _k(end_b),
-               _pc(bot["new"]["per_year"]), _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]),
+               _pc(bot["new"]["per_year"]), _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]), (" " + e(d["split_note"])) if d.get("split_note") else "",
                "".join(t1), t2, down, seven, brk, c(cov, "2000"), c(cov, "2008"), c(cov, "2020"), c(scov, "2011"), c(scov, "2019")))
 
 

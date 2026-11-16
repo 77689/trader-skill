@@ -77,3 +77,10 @@ deeper worst drop than the current split had then, TQQQ at most 25%, nothing ove
 2013-2026, then the other way round. Both directions beat the current split a little in the half they
 never saw (+0.2 to +0.7 points a year, same or smaller worst drop), and both put far less in Berkshire
 and more in TQQQ. Results in `splits.json`.
+
+Applied Nov 15 2026 (the smallest change that follows what both directions agreed on): Berkshire
+$2,500 -> $1,000, TQQQ $1,000 -> $2,500, same $16,000 in all. `stage3.py` now replays that split
+(six strategies since 2000: 10.1% a year, worst drop -29%; all seven since 2011: 13.0%, SPY 13.7%),
+and the panel says the split was picked from the same history. On the phone the Berkshire sleeve
+sells down to its new size at its next daily plan (`write_portfolio(owe=True)` shows the cut as cash
+owed to the rebalance tool) and the TQQQ sleeve buys up to its new size the same day.

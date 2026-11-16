@@ -70,7 +70,9 @@ DEFAULTS = {
     "alert_stop_pct": 15,          # price alert when a stock falls this far under your cost
     "alert_up_pct": 20,            # ... or rises this far over it
     "alert_move_pct": 5,           # ... or moves this much in a day
-    "berkshire_budget": 2500,
+    "berkshire_budget": 1000,      # was 2500: in the 2000-2026 test the Berkshire copy had the weakest return for its
+                                   # drops (7.7% a year, worst -51%); picking a split on one half of history and
+                                   # testing it on the other moved money from it to TQQQ both ways (Nov 15 2026)
     "screener_budget": 2500,
     "swing_budget": 2500,          # EMA44 pullback trades (from the strategy books)
     "momentum_budget": 2500,       # monthly: top 3 sector ETFs by 12-1 month return
@@ -79,7 +81,8 @@ DEFAULTS = {
     "momentum_top": 3,
     "trend_assets": ["SPY", "EFA", "IEF", "GLD"],
     "cash_etf": "BIL",             # where trend parks money when an asset is below its average
-    "tqqq_budget": 1000,           # 3x Nasdaq sleeve: small on purpose, never topped up
+    "tqqq_budget": 2500,           # 3x Nasdaq sleeve, only in calm uptrends (was 1000, see berkshire_budget);
+                                   # never topped up after a loss
     "tqqq_sma_days": 200,          # QQQ trend line
     "tqqq_band_pct": 2,            # in above SMA x 1.02, out below SMA x 0.98
     "tqqq_vol_3x": 25,             # QQQ 20-day volatility under this: TQQQ (3x)
@@ -411,10 +414,16 @@ def first_buy(sleeve, symbol):
     return today()
 
 
-def write_portfolio(sleeve, budget, d):
+def write_portfolio(sleeve, budget, d, owe=False):
+    """The sleeve as the trader tools see it. owe=True (for the rebalance plan only): when the sleeve has
+    spent more than its budget (the budget was cut), the difference shows as cash it owes, so the plan
+    sells down to the new budget instead of treating the old amount as the sleeve's size."""
     hold, realized = holdings(sleeve)
     spent = sum(h["cost"] for h in hold.values())
-    pf = {"cash": round(max(budget + realized - spent, 0), 2), "positions": []}
+    cash = budget + realized - spent
+    if not (owe and -cash > max(25.0, budget * 0.02)):
+        cash = max(cash, 0)
+    pf = {"cash": round(cash, 2), "positions": []}
     for s, h in hold.items():
         pf["positions"].append({"ticker": s, "shares": round(h["qty"], 6), "lots": [
             {"id": s + "-1", "date": first_buy(sleeve, s), "shares": round(h["qty"], 6),
@@ -464,8 +473,12 @@ def plan_and_trade(sleeve, budget, cfg, alpaca, prices_for):
     if not hold:
         run_tool("budget", ["--write"], d)
     else:
-        run_tool("rebalance", ["--band", cfg["rebalance_band_pct"], "--write", "--sell-untracked"], d,
-                 ok_codes=(0, 1))  # 1 = all in band; sells what the 13F / screen dropped
+        write_portfolio(sleeve, budget, d, owe=True)     # a cut budget sells down to the new size
+        try:
+            run_tool("rebalance", ["--band", cfg["rebalance_band_pct"], "--write", "--sell-untracked"], d,
+                     ok_codes=(0, 1))  # 1 = all in band; sells what the 13F / screen dropped
+        finally:
+            write_portfolio(sleeve, budget, d)           # the risk check sees the usual numbers
     if not os.path.exists(orders_file):
         log(sleeve, "no trades needed")
         return 0
