@@ -633,6 +633,25 @@ def market_session(alpaca, state, is_open):
     return "closed"
 
 
+FRESH_HOURS = 3
+
+
+def fresh_trades(d, hours=FRESH_HOURS):
+    """{symbol: (price, unix time)} from a latest-trades answer, leaving out trades older than
+    `hours`. Outside regular hours a quiet stock's "latest trade" can be days or weeks old (the
+    overnight venue trades some names only now and then), and that price must not stand in for
+    today's."""
+    out, now = {}, time.time()
+    for s, t in (d.get("trades") or {}).items():
+        try:
+            ts = datetime.datetime.strptime(t["t"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=datetime.timezone.utc).timestamp()
+            if now - ts < hours * 3600 and t.get("p"):
+                out[s] = (float(t["p"]), ts)
+        except Exception:
+            pass
+    return out
+
+
 def off_hours_prices(alpaca, symbols, session):
     """Latest trade prices outside regular hours from Alpaca's data feed
     (IEX for pre/after-hours, the overnight feed at night). {} if unavailable."""
@@ -644,15 +663,7 @@ def off_hours_prices(alpaca, symbols, session):
     except Exception as ex:
         log("stops: no %s prices (%s)" % (feed, str(ex)[:120]))
         return {}
-    out = {}
-    for s, t in (d.get("trades") or {}).items():
-        try:
-            ts = datetime.datetime.strptime(t["t"][:19], "%Y-%m-%dT%H:%M:%S")
-            if (datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - ts).total_seconds() < 3 * 3600 and t.get("p"):   # fresh only
-                out[s] = float(t["p"])
-        except Exception:
-            pass
-    return out
+    return {s: p for s, (p, _) in fresh_trades(d).items()}
 
 
 def sold_today(sleeve):
@@ -1971,21 +1982,31 @@ def start_fast_news(alpaca, cfg):
     FAST["thread"].start()
 
 
+def update_live(alpaca, cfg):
+    """One pass of live_prices. Only trades from the last few hours count, and a price that old
+    drops out, so the dashboard falls back to Alpaca's own price for that holding (the last close
+    at night) instead of a days-old overnight print. None when the market is shut."""
+    ses = load("state.json", {}).get("session") or "regular"
+    if ses == "closed" or not alpaca.ready:
+        return None
+    syms = sorted({s for n in SLEEVES for s in holdings(n)[0]} | {"SPY", "QQQ"})
+    feed = "overnight" if ses == "overnight" else "iex"
+    d = alpaca.data("/v2/stocks/trades/latest?symbols=%s&feed=%s" % (",".join(syms), feed))
+    old, now = load("live.json", {}), time.time()
+    at = {s: t for s, t in (old.get("at") or {}).items() if now - t < FRESH_HOURS * 3600}
+    px = {s: p for s, p in (old.get("prices") or {}).items() if s in at}
+    for s, (p, t) in fresh_trades(d).items():
+        px[s], at[s] = p, t
+    save("live.json", {"time": stamp(), "ts": now, "session": ses, "prices": px, "at": at})
+    return px
+
+
 def live_prices(alpaca, cfg):
     """Every few seconds: latest trade for everything held plus SPY/QQQ, one request,
     into live.json for the dashboard. Display only; trading never uses it."""
     while True:
         try:
-            ses = load("state.json", {}).get("session") or "regular"
-            if ses != "closed" and alpaca.ready:
-                syms = sorted({s for n in SLEEVES for s in holdings(n)[0]} | {"SPY", "QQQ"})
-                feed = "overnight" if ses == "overnight" else "iex"
-                d = alpaca.data("/v2/stocks/trades/latest?symbols=%s&feed=%s" % (",".join(syms), feed))
-                px = {s: t["p"] for s, t in (d.get("trades") or {}).items() if t.get("p")}
-                if px:
-                    old = load("live.json", {}).get("prices", {})
-                    old.update(px)
-                    save("live.json", {"time": stamp(), "ts": time.time(), "session": ses, "prices": old})
+            update_live(alpaca, cfg)
         except Exception:
             pass
         time.sleep(max(5, cfg.get("live_seconds", 15)))
