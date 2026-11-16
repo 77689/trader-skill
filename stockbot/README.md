@@ -307,6 +307,24 @@ is slow the glow turns itself off (the "glow" button turns it back on).
 - **City**: name tags stay off the towers.
 - The log no longer fills with the routine news line, and tool errors are one readable line.
 
+## Trade journal and weekly self-check
+
+`journal.py` keeps a trade journal in `~/stockbot-data/journal.db` (SQLite, built
+into Python, nothing to install): every filled trade with its reason and what the
+market was doing (market filter, QQQ trend and volatility), every closed trade
+with its result, and each part's value at the end of each day. The bot updates it
+every cycle while the market is open. `python3 stockbot/journal.py` prints a summary.
+
+`selfcheck.py` runs every Friday after the close. For each part it compares the
+drop from its best, its worst week and month, and its time below its best (for
+swing and breakout also losing streaks and the recent win rate) with the worst the
+same part ever did in the 27-year backtest (`backtest_ranges.json`, made by
+`backtest/ranges.py`). "Watch" means 75% of the way to that worst, "flag" means
+worse than anything in 27 years. Returns are worked out so adding or taking out
+money doesn't count as a gain or a loss. The result is on the Stocks tab under
+Trades; `python3 stockbot/selfcheck.py` runs it now. Both sync to GitHub as
+`journal.json` and `selfcheck.json`.
+
 ## Tests
 
 `python stockbot/tests/run.py` runs every check (about 220) in a few seconds. Each test works in

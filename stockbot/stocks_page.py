@@ -23,6 +23,7 @@ import golive  # noqa: E402
 import scorecard  # noqa: E402
 
 EXTRA = """
+.scw { color:#d29922; }
 .nwrap td:last-child { white-space:normal; line-height:1.35; }
 .nwrap td { vertical-align:top; }
 .tabs { display:flex; flex-wrap:nowrap; gap:4px; margin:2px 0 12px; overflow-x:auto; scrollbar-width:none; }
@@ -580,6 +581,50 @@ def trades_html(orders, now=None, first=12, most=60):
     return "".join(out)
 
 
+SC_CLS = {"ok": "pos", "watch": "scw", "flag": "neg"}
+SC_RANK = {"flag": 0, "watch": 1}
+
+
+def selfcheck_html():
+    """Weekly self-check (selfcheck.json) plus a one-line journal count. Bad or missing data never raises."""
+    try:
+        sc = stockbot.load("selfcheck.json", None)
+        if not isinstance(sc, dict) or sc.get("overall") not in SC_CLS:
+            raise ValueError("no usable self-check")
+        when = ""
+        try:
+            when = datetime.datetime.strptime(str(sc.get("time", "")), "%Y-%m-%d %H:%M").strftime("%a %H:%M")
+        except Exception:
+            pass
+        ov = sc["overall"]
+        h = ('<div><span class="%s">%s</span> %s%s</div>'
+             % (SC_CLS[ov], e(ov), e(sc.get("summary", "")),
+                ' <span class="muted">checked %s</span>' % e(when) if when else ""))
+        sl = sc.get("sleeves") if isinstance(sc.get("sleeves"), dict) else {}
+        items = sorted(((n, v) for n, v in sl.items() if isinstance(v, dict)),
+                       key=lambda nv: SC_RANK.get(nv[1].get("status"), 2))
+        if items:
+            rows = []
+            for n, v in items:
+                st = v.get("status") if v.get("status") in SC_CLS else "ok"
+                msgs = v.get("msgs") if isinstance(v.get("msgs"), list) else []
+                rows.append('<div class="hs"><span class="%s">%s</span> <b>%s</b>%s</div>'
+                            % (SC_CLS[st], e(st), e(n), "".join("<div>%s</div>" % e(m) for m in msgs)))
+            h += '<details class="more"><summary>by sleeve</summary>%s</details>' % "".join(rows)
+    except Exception:
+        h = '<div class="muted">Weekly self-check: the first one runs Friday after the close.</div>'
+    try:
+        j = stockbot.load("journal.json", None)
+        if isinstance(j, dict):
+            rt = [r for r in (j.get("round_trips") or []) if isinstance(r, dict)]
+            wins = sum(1 for r in rt if num(r.get("pnl")) > 0)
+            h += ('<div class="hs">Journal: %d trades logged &middot; %d closed (%d wins)</div>'
+                  % (len(j.get("trades") or []), len(rt), wins))
+    except Exception:
+        pass
+    return h
+
+
 def page(cfg):
     account = stockbot.load("account.json", {})
     status = stockbot.load("status.json", {})
@@ -658,6 +703,10 @@ def page(cfg):
     # every buy and sell, newest first, right under the cards
     out.append("<h2>Trades</h2>")
     out.append(trades_html(orders))
+
+    # weekly self-check of the bot's behavior
+    out.append("<h2>Self-check</h2>")
+    out.append(selfcheck_html())
 
     # chart: the bot vs SPY vs QQQ since the first trade
     out.append("<h2>Bot vs SPY vs QQQ</h2>")

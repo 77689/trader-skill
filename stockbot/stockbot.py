@@ -1854,6 +1854,45 @@ def snapshot(alpaca):
     save("account.json", snap)
 
 
+JOURNAL = {"mtime": None}
+SELFCHECK = {"tried": 0.0}
+
+
+def journal_step(is_open):
+    """The trade journal (journal.py, journal.db): every filled trade with its reason and the market
+    at the time, each closed trade's result, and each part's value at the end of the day. While the
+    market is open it runs every cycle (the last one of the day leaves the close); after hours only
+    when the ledger changed."""
+    try:
+        mt = os.path.getmtime(path("ledger.json"))
+    except OSError:
+        mt = None
+    if not is_open and mt == JOURNAL["mtime"]:
+        return
+    import journal
+    values = None
+    if is_open:
+        px, spy = price_now(), float(load("spy.json", {}).get("price") or 0)
+        values = {}
+        for s in SLEEVES:
+            net, gain, _ = bench_gain(s, px, spy)
+            values[s] = (round(net, 2), round(gain, 2))
+    journal.sync(DATA, values)
+    JOURNAL["mtime"] = mt
+
+
+def selfcheck_step():
+    """Fridays after the close: each part against its normal range from the 27-year test
+    (selfcheck.py). The result is on the Stocks tab and in selfcheck.json."""
+    import selfcheck
+    now = datetime.datetime.now()
+    if time.time() - SELFCHECK["tried"] < 3600 or not selfcheck.due(now, load("selfcheck.json", {}).get("time")):
+        return
+    SELFCHECK["tried"] = time.time()    # a check that fails isn't retried every cycle
+    r = selfcheck.run(DATA, now=now)
+    log("self-check:", r.get("summary", ""))
+
+
 def cycle(cfg, alpaca):
     state = load("state.json", {})
     status = {"time": stamp(), "errors": []}
@@ -1898,7 +1937,8 @@ def cycle(cfg, alpaca):
         except Exception as ex:
             log("history error:", ex)
     for name, fn in (("tax", lambda: tax(cfg)), ("alerts", lambda: alerts(cfg)),
-                     ("report", lambda: daily_report(cfg, state))):
+                     ("report", lambda: daily_report(cfg, state)), ("journal", lambda: journal_step(is_open)),
+                     ("self-check", selfcheck_step)):
         try:
             fn()
         except Exception as ex:
