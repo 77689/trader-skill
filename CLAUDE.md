@@ -5,6 +5,10 @@
 - Graphify indexes `main`. After pushing `stockbot`, also run `git push origin stockbot:main`
   (a fast-forward: `main` has nothing of its own).
 - Tests: `python3 stockbot/tests/run.py`.
+- Rafael's rule: use Graphify for every code lookup and every code change. Find code with
+  graphify_find / query_graph / graphify_node instead of reading whole files, and before changing a
+  function check graphify_callers / graphify_impact / graphify_tests_for. Grep only for literal
+  strings and files Graphify doesn't index. Push `stockbot:main` afterwards so the index catches up.
 - Rafael's Obsidian vault (bot notes only, nothing personal) is the `claude-vault` branch of the
   private `77689/memebot-data` repo. The phone syncs it both ways every 5 minutes
   (`stockbot/vault_sync.sh`, called by sync.sh), so edit it with normal commits on top and never
