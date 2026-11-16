@@ -130,6 +130,8 @@ out = {
               "screener_dropped_for_losses": drops},
 }
 json.dump(out, open(os.path.join(H, "backtest.json"), "w"), separators=(",", ":"), default=float)
+pickle.dump({"parts": parts, "spy": spy, "cal": CAL, "k0": K0, "ks": ks, "bud": BUD},     # for split tests (splits.py)
+            open(os.path.join(H, "parts.pkl"), "wb"), protocol=4)
 print(json.dumps({k: out[k] for k in ("bot", "all7", "spy", "beat_spy_years", "down_years", "notes", "screener_coverage")}))
 for n, v in out["strategies"].items():
     print(n, json.dumps(v))

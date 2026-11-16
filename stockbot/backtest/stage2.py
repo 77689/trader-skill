@@ -106,10 +106,10 @@ def raw_px(name):
         if not d or not d.get("rows"):
             _px[name] = ({}, []); return _px[name]
         splits = sorted([s[0], float(s[1]) / float(s[2])] for s in d.get("splits") or [] if s[1] and s[2])
-        out = {}
+        out, raw = {}, d.get("close_is_raw")          # archive files already hold the price as traded
         for r in d["rows"]:
             f = 1.0
-            for sd, ratio in splits:
+            for sd, ratio in ([] if raw else splits):
                 if sd > r[0]:
                     f *= ratio
             out[r[0]] = r[4] * f

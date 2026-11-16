@@ -4,7 +4,11 @@ Sources, in order of preference for a (ticker, date):
   1. Yahoo daily history (px/*.json), companies that still trade
   2. Yahoo under the company's current ticker (RENAME), e.g. UTX -> RTX, FB -> META
   3. Quandl WIKI archive from Kaggle (wiki/WIKI_PRICES.csv, ends 2018-03-27), which still has
-     companies that were later delisted or bought
+     companies that were later delisted or bought; where Tiingo (tiingo/*.json, fetched on the phone
+     with a free key) has the same company after that, its prices carry the series on, scaled to
+     meet WIKI's on the days both have (only if the two move together: a reused ticker is refused)
+  4. Tiingo on its own, for companies WIKI doesn't have
+  5. old price files the phone found in the Internet Archive (wayback_clean/)
 
 Prices are adjusted for splits and dividends (total return), so holding a stock earns its dividends.
 Output: panel.pkl with arrays [security, day] on the SPY trading calendar, the S&P 500 member list
@@ -47,6 +51,40 @@ def yahoo(name):
             if len(r) >= 200:
                 return r
     return None
+
+
+TI = os.path.join(H, "tiingo")
+apart = {}                      # WIKI ticker -> why Tiingo's series wasn't joined to it
+
+
+def tiingo_rows(name):
+    """Tiingo's rows for a ticker as [date, o, h, l, c, v, c] (adjusted for splits and dividends), or None."""
+    f = os.path.join(TI, name + ".json")
+    if not os.path.exists(f):
+        return None
+    rows = [(r[0], r[1], r[2], r[3], r[4], r[5], r[4]) for r in json.load(open(f))["rows"] if r[4] and r[1]]
+    return rows if len(rows) >= 120 else None
+
+
+def splice(w, t):
+    """WIKI's rows, then Tiingo's from the day after WIKI ends, Tiingo scaled to WIKI's level on the last
+    days both have. (rows, info), or None when the two series don't move together over their common days
+    (then it is not the same company, or one of them is broken)."""
+    wc, tc = {r[0]: r[4] for r in w}, {r[0]: r[4] for r in t}
+    common = sorted(set(wc) & set(tc))[-250:]
+    if len(common) < 60:
+        return "apart"
+    a, b = np.array([wc[d] for d in common]), np.array([tc[d] for d in common])
+    corr = float(np.corrcoef(np.diff(np.log(a)), np.diff(np.log(b)))[0, 1])
+    lr = np.log(a / b)
+    drift = float(np.max(np.abs(lr - np.median(lr))))
+    if corr < 0.95 or drift > 0.05:
+        return "refused (corr %.3f, drift %.3f)" % (corr, drift)
+    k = float(np.exp(np.median(lr[-20:])))
+    end = w[-1][0]
+    tail = [(d, o * k, h * k, l * k, c * k, v / k, c * k) for d, o, h, l, c, v, _ in t if d > end]
+    return list(w) + tail, {"from": tail[0][0] if tail else None, "scale": round(k, 6), "corr": round(corr, 4),
+                            "drift": round(drift, 4), "days": len(tail)}
 
 
 def main():
@@ -102,15 +140,36 @@ def main():
                                                     float(row[13] or 0), float(row[5]) * (float(row[6]) / float(row[13]) if float(row[13] or 0) else 1.0)))
                 except ValueError:
                     continue
-    wcache = {}
+    wcache, spliced = {}, {}
 
     def wsec(name):
         if name in wcache:
             return wcache[name]
         r = wrows.get(name)
         # raw close * raw volume = adjusted dollar volume proxy: store raw_close such that rc * adj_vol = close*vol
+        if r:
+            t = tiingo_rows(name.replace("_", "."))
+            if t:
+                s = splice(r, t)
+                if isinstance(s, tuple):
+                    r, spliced[name + "~w"] = s
+                else:
+                    apart[name] = s                                 # Tiingo's goes in on its own (tsec) if it is not refused
         idx = add(name + "~w", r) if r else None
         wcache[name] = idx
+        return idx
+
+    tcache = {}
+
+    def tsec(name):
+        """Tiingo on its own, for a company the WIKI archive doesn't have (or has under another company)."""
+        if name in tcache:
+            return tcache[name]
+        idx, w = None, name.replace(".", "_")
+        if not wrows.get(w) or apart.get(w) == "apart":
+            t = tiingo_rows(name)
+            idx = add(name + "~t", t) if t else None
+        tcache[name] = idx
         return idx
 
     acache = {}
@@ -141,9 +200,11 @@ def main():
             cands.append(("w", t.replace(".", "_")))
             if t in WIKI_ALIAS:
                 cands.append(("w", WIKI_ALIAS[t]))
+            cands.append(("t", t))                                  # Tiingo, for companies WIKI doesn't have
             cands.append(("a", t))                                  # last resort: the Internet Archive files
             for kind, name in cands:
-                idx = ysec(name) if kind == "y" else wsec(name) if kind == "w" else asec(name)
+                idx = (ysec(name) if kind == "y" else wsec(name) if kind == "w" else tsec(name) if kind == "t"
+                       else asec(name))
                 if idx is None:
                     continue
                 if idx not in spans:
@@ -166,16 +227,22 @@ def main():
             "COST", "WMT", "HD", "LLY", "UNH", "XOM", "CVX", "PG", "KO", "PEP", "ABBV", "MRK", "TMO", "CSCO", "INTU"]
     live_idx = {s: ysec(s) for s in live}
     P = {k: np.vstack([d[k] for d in data]) for k in ("o", "h", "l", "c", "v", "dv")}
-    pickle.dump({"cal": cal, "secs": secs, "P": P, "members": mem, "resolve": resolve, "extra": extra, "live": live_idx},
-                open(os.path.join(H, "panel.pkl"), "wb"), protocol=4)
+    pickle.dump({"cal": cal, "secs": secs, "P": P, "members": mem, "resolve": resolve, "extra": extra, "live": live_idx,
+                 "spliced": spliced}, open(os.path.join(H, "panel.pkl"), "wb"), protocol=4)
     print("securities", len(secs), "days", n, cal[0], cal[-1])
+    used = {secs[i] for got in resolve.values() for i in got.values()}
+    bad = {k: v for k, v in apart.items() if v != "apart"}
+    print("Tiingo: carried %d WIKI series on, %d companies on their own, refused %d (not the same company): %s"
+          % (len(spliced), sum(1 for s in used if s.endswith("~t")), len(bad), bad))
+    json.dump({"spliced": spliced, "alone": sorted(s for s in used if s.endswith("~t")), "refused": bad},
+              open(os.path.join(H, "tiingo_used.json"), "w"), indent=1)
     by = {}
     for mo, ms in mem.items():
         if mo < "2000-01" or mo > "2026-10":
             continue
         y = mo[:4]
         a = by.setdefault(y, [0, 0, 0])
-        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a")))
+        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a", "~t")))
     for y in sorted(by):
         a = by[y]
         print(y, "members %d  covered %.1f%%  (from the Kaggle archive %.1f%%)" % (a[0] // 12, a[1] / a[0] * 100, a[2] / a[0] * 100))

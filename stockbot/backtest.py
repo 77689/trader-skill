@@ -148,15 +148,16 @@ def section(e=html.escape):
             '<div class="cap">What this is: the bot\'s own rules replayed day by day, buying at the next open, with trading costs. '
             'Stocks come from the companies that were in the S&amp;P 500 at the time, including ones that later failed or were '
             'bought, not from today\'s winners. "Old settings" is how Swing and Breakout traded before Nov 15.%s%s '
-            'Prices come from Yahoo, the Quandl archive on Kaggle and, for 117 companies, old price files your phone found in '
-            'the Internet Archive (most of those leave out dividends). '
-            'Gaps: prices exist for %s%% of the index in 2000, %s%% in 2008 and %s%% in 2015 (the rest are mostly companies '
+            'Prices come from Yahoo, the Quandl archive on Kaggle, Tiingo (69 companies bought or closed since 2018, fetched '
+            'by your phone) and, for 117 companies, old price files your phone found in the Internet Archive (most of those '
+            'leave out dividends). '
+            'Gaps: prices exist for %s%% of the index in 2000, %s%% in 2008 and %s%% in 2020 (the rest are mostly companies '
             'that failed, so the early years are probably a little flattering). The Screener sees %s%% of the index in 2011 and '
-            '%s%% in 2019 (prices of companies that closed after March 2018 end there). A test of the past is not a promise.'
+            '%s%% in 2019. A test of the past is not a promise.'
             '</div></section></div>'
             % (BOT, _k(end_b), SPY, _k(end_s), chart(d), format(d["start_usd"], ","), e(d["from"]), _k(end_b),
                _pc(bot["new"]["per_year"]), _k(end_s), _pc(spy["per_year"]), d.get("beat_spy_years", 0), len(d["years"]),
-               "".join(t1), t2, down, seven, brk, c(cov, "2000"), c(cov, "2008"), c(cov, "2015"), c(scov, "2011"), c(scov, "2019")))
+               "".join(t1), t2, down, seven, brk, c(cov, "2000"), c(cov, "2008"), c(cov, "2020"), c(scov, "2011"), c(scov, "2019")))
 
 
 CSS = """

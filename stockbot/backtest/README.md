@@ -52,3 +52,28 @@ that Tiingo's public ticker list has for the right dates, mostly bought or close
 request every 75 seconds (free plan: 50 an hour); results go to ~/stockbot-data/tiingo/ and up with
 the stock sync. A ticker later reused by another company is caught by comparing names with SEC's
 records. Offline tests: `stockbot/tests/test_tiingo.py`.
+
+After the phone run (Nov 15 2026): 71 of the 76 companies came back (86,700 trading days). `build_data.py`
+joins Tiingo's prices onto the WIKI series of the same company where both have a year of days in common
+(daily moves must match, correlation 0.95 or more, so a reused ticker is refused; none was): 55 companies
+carried on past March 2018, and 14 more stand on their own (`~t`), mostly companies WIKI never had
+(Kenvue, Warner Bros. Discovery, Coterra, Dayforce...). `add_dead.py` gives the Screener their filed
+numbers (13 SEC numbers checked by hand in MANUAL; Signature Bank filed with the FDIC, so it has none)
+and their as-traded prices. Index coverage after 2018 went from 89-97% to 97.5-99.6%.
+
+Also fixed: the archive price files already hold the price as traded, but `stage2.raw_px` undid later
+splits on them too, so for 22 companies the Screener saw pre-split prices too high (now flagged with
+`close_is_raw`).
+
+What changed: six strategies since 2000 8.7% -> 8.8% a year (worst drop -27.5%). The Screener since
+2011 fell from 11.3% to 9.5% a year (worst drop -37% -> -32%): 1.4 points of that is the companies that
+closed after 2018 now being in its list (the old number was flattered by survivorship), 0.4 the price fix.
+All seven since 2011: 11.5% -> 11.3% (SPY 13.7%).
+
+## Budget split test (`splits.py`, needs `parts.pkl` from `stage3.py`)
+
+Walk-forward over the six strategies with data since 2000: pick the best split using 2000-2012 only (no
+deeper worst drop than the current split had then, TQQQ at most 25%, nothing over 40%) and test it on
+2013-2026, then the other way round. Both directions beat the current split a little in the half they
+never saw (+0.2 to +0.7 points a year, same or smaller worst drop), and both put far less in Berkshire
+and more in TQQQ. Results in `splits.json`.

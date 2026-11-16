@@ -77,6 +77,25 @@ a.coin { display:inline-flex; align-items:center; }
 .rb i { position:absolute; top:-3px; width:2px; height:14px; border-radius:1px; transform:translateX(-1px); }
 .rb i.c { background:#8b949e; } .rb i.n { background:#e6e6e6; width:4px; transform:translateX(-2px); }
 .rbl { display:flex; gap:10px; font-size:11px; }
+.trh { font-size:13px; color:#c9d1d9; margin:2px 2px 8px; }
+.trd { font-size:11px; color:#8b949e; text-transform:uppercase; letter-spacing:.05em; margin:12px 2px 6px; }
+details.tr { background:#161b22; border:1px solid #30363d; border-radius:10px; margin-bottom:6px; }
+details.tr > summary { list-style:none; cursor:pointer; padding:9px 10px; display:grid; align-items:center;
+          grid-template-columns:auto minmax(0, 1fr) auto; column-gap:8px; row-gap:3px; -webkit-tap-highlight-color:transparent; }
+details.tr > summary::-webkit-details-marker { display:none; }
+.tr .sd { font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 6px; border-radius:6px; }
+.tr .sd.b { background:#3fb95022; color:#3fb950; } .tr .sd.s { background:#f8514922; color:#f85149; }
+.tr .wh { display:flex; align-items:center; min-width:0; font-size:14px; white-space:nowrap; }
+.tr .wh b { font-weight:600; } .tr .wh .q { color:#8b949e; margin-left:6px; overflow:hidden; text-overflow:ellipsis; }
+.tr .am { font-weight:600; font-variant-numeric:tabular-nums; text-align:right; }
+.tr .mt { grid-column:2 / -1; font-size:12px; color:#8b949e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tr .st { color:#d29922; } .tr .st.bad { color:#f85149; } .tr.off .am { color:#8b949e; text-decoration:line-through; }
+.tr .full { padding:0 10px 10px 10px; font-size:12px; color:#8b949e; line-height:1.45; white-space:normal; }
+.tr .full a { color:#58a6ff; }
+.tr.fresh { border-color:#58a6ff; animation:trf 4s ease-out; }
+@keyframes trf { from { background:#58a6ff40; } to { background:#161b22; } }
+details.more > summary { list-style:none; cursor:pointer; font-size:13px; color:#58a6ff; padding:6px 2px; }
+details.more > summary::-webkit-details-marker { display:none; }
 .share { font-size:12px; color:#8b949e; margin:-4px 0 12px; }
 .share input { width:100%; box-sizing:border-box; margin-top:4px; padding:7px 9px; border-radius:8px;
                border:1px solid #30363d; background:#0e1116; color:#58a6ff; font-size:13px; }
@@ -380,6 +399,13 @@ SCRIPT = """<script>
     if (k in old && old[k] !== v) { el.classList.add(v > old[k] ? 'fu' : 'fd'); }
   });
   try { sessionStorage.setItem('sk', JSON.stringify(now)); } catch (x) {}
+  var seen = null, ids = [];                    // a trade that wasn't there at the last refresh lights up once
+  try { seen = JSON.parse(sessionStorage.getItem('trs') || 'null'); } catch (x) {}
+  document.querySelectorAll('.tr[data-id]').forEach(function(el){
+    ids.push(el.dataset.id);
+    if (seen && seen.indexOf(el.dataset.id) < 0) el.classList.add('fresh');
+  });
+  try { sessionStorage.setItem('trs', JSON.stringify(ids)); } catch (x) {}
   function tick(){
     document.querySelectorAll('.cd').forEach(function(el){
       var t = Date.parse(el.dataset.to);
@@ -429,6 +455,129 @@ def fold(parts):
         out.append('<details class="sec" data-k="%s"%s><summary>%s</summary>%s</details>'
                    % (key, "" if shut else " open", title, body))
     return out
+
+
+NAMES = {"berkshire": "Berkshire", "screener": "Screener", "swing": "Swing", "breakout": "Breakout",
+         "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ"}
+WAITING = ("new", "accepted", "pending_new", "accepted_for_bidding", "pending_replace", "held", "calculated", "")
+STATUS = {"partially_filled": "part filled", "canceled": "canceled", "expired": "expired", "rejected": "rejected",
+          "dry_run": "not sent", "error": "error"}
+
+
+def reason(o):
+    """Why the bot placed an order, in a few words (the full reason shows when you tap the trade)."""
+    w, side, sleeve = str(o.get("why") or ""), o.get("side"), o.get("sleeve")
+    lw = w.lower()
+    for key, short in (("stop-loss", "stop-loss hit"), ("target hit", "profit target hit"),
+                       ("idle cash into", "parking idle cash"), ("idle cash out", "freeing parked cash"),
+                       ("ema44 pullback", "dip to 44-day average"), ("52-week high", "new 52-week high"),
+                       ("no longer picked", "no longer picked"), ("trim to target", "trim to target"),
+                       ("copying berkshire", "copying Berkshire's 13F"), ("copying screener", "new pick"),
+                       ("not in your targets", "no longer a pick")):
+        if key in lw:
+            return short
+    m = re.search(r"drifted ([+-][\d.]+) points from its ([\d.]+)% target", lw)
+    if m:
+        if side == "sell":
+            return "trim to target"
+        return "new pick" if abs(float(m.group(1))) >= float(m.group(2)) - 0.05 else "top up to target"
+    if re.search(r"\d+% target for", lw):
+        if sleeve == "tqqq":
+            return {"BIL": "rule says out: T-bills", "TQQQ": "rule says in: 3x", "QLD": "rule says in: 2x"}.get(
+                o.get("symbol"), "monthly rule")
+        return {"momentum": "this month's pick", "trend": "this month's signal"}.get(sleeve, "monthly target")
+    return w[:70] or "-"
+
+
+def shares_txt(q):
+    if abs(q - round(q)) < 1e-6:
+        return "%d" % round(q)
+    return ("%.3f" % q if q < 10 else "%.2f" % q if q < 100 else "%.1f" % q).rstrip("0").rstrip(".")
+
+
+def usd(x):
+    return "$%s" % format(x, ",.0f") if abs(x) >= 100 else "$%.2f" % x
+
+
+def trade_row(o, now):
+    side, st = o.get("side", ""), o.get("status", "")
+    q, p, sym = num(o.get("qty")), num(o.get("price")), str(o.get("symbol", ""))
+    got = st in ("filled", "partially_filled") and q > 0
+    try:
+        t = datetime.datetime.strptime(str(o.get("time", ""))[:19], "%Y-%m-%d %H:%M:%S")
+        when = t.strftime("%I:%M %p").lstrip("0")
+    except ValueError:
+        t, when = None, str(o.get("time", ""))[11:16]
+    if got:
+        what, amount = "%s sh @ $%s" % (shares_txt(q), format(p, ",.2f")), usd(q * p)
+    elif o.get("notional"):
+        what, amount = "for $%s" % e(o["notional"]), usd(num(o["notional"]))
+    else:
+        wq = num(o.get("want_qty"))
+        what, amount = "%s sh" % shares_txt(wq), usd(wq * p) if p else "-"
+    state = STATUS.get(st, "waiting to fill" if st in WAITING else st)
+    off = st in ("canceled", "expired", "rejected", "dry_run", "error")
+    mt = [when, NAMES.get(o.get("sleeve"), o.get("sleeve", "")), reason(o)]
+    if not got or st == "partially_filled":
+        mt.insert(0, '<span class="st%s">%s</span>' % (" bad" if st in ("rejected", "error") else "", e(state)))
+    full = [e(o.get("why") or "no reason recorded")]
+    if got:
+        full.append("Filled: %s shares of %s at $%s = %s." % (shares_txt(q), e(sym), format(p, ",.2f"), usd(q * p)))
+    else:
+        full.append("Order %s." % e(state))
+    full.append('<a href="/s?sym=%s">%s chart and history</a>' % (e(sym), e(sym)))
+    rid = o.get("order_id") or "%s-%s-%s" % (o.get("time"), sym, side)
+    return ('<details class="tr%s" data-id="%s"><summary><span class="sd %s">%s</span>'
+            '<span class="wh">%s<b>%s</b><span class="q">%s</span></span><span class="am">%s</span>'
+            '<span class="mt">%s</span></summary><div class="full">%s</div></details>'
+            % (" off" if off else "", e(rid), "b" if side == "buy" else "s", "BUY" if side == "buy" else "SELL",
+               logo(sym), e(sym), what, amount, " &middot; ".join(x if x.startswith("<span") else e(x) for x in mt),
+               "<br>".join(full)))
+
+
+def trades_html(orders, now=None, first=12, most=60):
+    """Every order the bot placed, newest first: what, how many shares, at what price, and why. The page
+    reloads every 30 seconds, and a trade that wasn't there the last time lights up (see SCRIPT)."""
+    now = now or datetime.datetime.now()
+    today, yday = now.strftime("%Y-%m-%d"), (now - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    done = [o for o in orders if str(o.get("time", "")).startswith(today) and o.get("status") in ("filled", "partially_filled")]
+    b = [o for o in done if o.get("side") == "buy"]
+    s = [o for o in done if o.get("side") == "sell"]
+    tot = lambda xs: usd(sum(num(o.get("qty")) * num(o.get("price")) for o in xs))
+    if done:
+        head = "today: %s%s" % ("%d buy%s (%s)" % (len(b), "" if len(b) == 1 else "s", tot(b)) if b else "",
+                                ("%s%d sell%s (%s)" % (" &middot; " if b else "", len(s), "" if len(s) == 1 else "s", tot(s))) if s else "")
+    else:
+        head = "no trades today yet"
+    if orders:
+        try:
+            t = datetime.datetime.strptime(str(orders[-1].get("time", ""))[:19], "%Y-%m-%d %H:%M:%S")
+            head += ' <span class="muted">&middot; last one %s</span>' % e(
+                ("at " if t.strftime("%Y-%m-%d") == today else t.strftime("%a ")) + t.strftime("%I:%M %p").lstrip("0"))
+        except ValueError:
+            pass
+    out = ['<div class="trh">%s</div>' % head]
+    if not orders:
+        out.append('<div class="note muted">no trades yet</div>')
+        return "".join(out)
+    rows, day = [], None
+    for i, o in enumerate(list(reversed(orders))[:most]):
+        d = str(o.get("time", ""))[:10]
+        if d != day:
+            day = d
+            try:
+                lab = "today" if d == today else "yesterday" if d == yday else datetime.date.fromisoformat(d).strftime("%a %b %d")
+            except ValueError:
+                lab = d
+            rows.append((i, '<div class="trd">%s</div>' % e(lab)))
+        rows.append((i, trade_row(o, now)))
+    shown = "".join(h for i, h in rows if i < first)
+    rest = [h for i, h in rows if i >= first]
+    out.append(shown)
+    if rest:
+        n = sum(1 for h in rest if h.startswith("<details"))
+        out.append('<details class="more"><summary>%d older trade%s</summary>%s</details>' % (n, "" if n == 1 else "s", "".join(rest)))
+    return "".join(out)
 
 
 def page(cfg):
@@ -505,6 +654,10 @@ def page(cfg):
     out.append('<div class="card"><div class="label">Orders today</div><div class="val">%d</div></div>'
                % placed_today)
     out.append("</div>")
+
+    # every buy and sell, newest first, right under the cards
+    out.append("<h2>Trades</h2>")
+    out.append(trades_html(orders))
 
     # chart: the bot vs SPY vs QQQ since the first trade
     out.append("<h2>Bot vs SPY vs QQQ</h2>")
@@ -642,17 +795,6 @@ def page(cfg):
                          '<a class="coin bad" href="%sno">Decline</a>' % (link, link)])
         out.append("<h2>Waiting for your yes (%d)</h2>" % len(pend))
         out.append(table(["sleeve", "order", ""], rows, "nothing waiting"))
-
-    # orders
-    rows = []
-    for o in reversed(orders[-15:]):
-        side = o.get("side", "")
-        rows.append(['%s<div class="hs">%s</div>' % (e(o.get("time", ""))[5:16], e(o.get("sleeve", ""))),
-                     '<span class="%s" style="margin-right:6px">%s</span>%s'
-                     % ("pos" if side == "buy" else "neg", e(side), sym_link(o.get("symbol", ""))),
-                     amount(o), e(o.get("status", ""))])
-    out.append("<h2>Last 15 orders</h2>")
-    out.append(table(["time", "order", "amount", "status"], rows, "no orders yet", "tight"))
 
     # congress
     rows = []
