@@ -1,0 +1,91 @@
+{
+ "made": "2026-11-16",
+ "from": "2000-01-03",
+ "to": "2026-11-13",
+ "sleeves": {
+  "swing": {
+   "from": "2000-01-03",
+   "worst_drop": -38.8,
+   "longest_underwater_days": 1125,
+   "worst_week": -9.9,
+   "worst_month": -18.0,
+   "trades": {
+    "n": 1433,
+    "win_rate": 33.2,
+    "longest_losing_streak": 20,
+    "worst_win_rate_20": 0.0
+   }
+  },
+  "breakout": {
+   "from": "2000-01-03",
+   "worst_drop": -21.2,
+   "longest_underwater_days": 950,
+   "worst_week": -10.6,
+   "worst_month": -17.0,
+   "trades": {
+    "n": 311,
+    "win_rate": 55.3,
+    "longest_losing_streak": 8,
+    "worst_win_rate_20": 25.0
+   }
+  },
+  "momentum": {
+   "from": "2000-01-03",
+   "worst_drop": -44.1,
+   "longest_underwater_days": 839,
+   "worst_week": -18.3,
+   "worst_month": -30.2
+  },
+  "trend": {
+   "from": "2000-01-03",
+   "worst_drop": -10.7,
+   "longest_underwater_days": 802,
+   "worst_week": -5.3,
+   "worst_month": -9.9
+  },
+  "tqqq": {
+   "from": "2000-01-03",
+   "worst_drop": -62.7,
+   "longest_underwater_days": 935,
+   "worst_week": -36.4,
+   "worst_month": -38.6
+  },
+  "berkshire": {
+   "from": "2000-01-03",
+   "worst_drop": -50.6,
+   "longest_underwater_days": 1466,
+   "worst_week": -17.7,
+   "worst_month": -33.4
+  },
+  "screener": {
+   "from": "2011-04-01",
+   "worst_drop": -31.5,
+   "longest_underwater_days": 1188,
+   "worst_week": -16.7,
+   "worst_month": -27.8
+  },
+  "bot": {
+   "from": "2000-01-03",
+   "worst_drop": -29.2,
+   "worst_week": -14.3,
+   "worst_month": -22.3,
+   "longest_underwater_days": 851,
+   "note": "most severe of the six parts together since 2000-01-03 and all seven since 2011-04-01, at today's budgets",
+   "six": {
+    "from": "2000-01-03",
+    "worst_drop": -29.2,
+    "longest_underwater_days": 851,
+    "worst_week": -14.3,
+    "worst_month": -21.3
+   },
+   "all7": {
+    "from": "2011-04-01",
+    "worst_drop": -23.0,
+    "longest_underwater_days": 459,
+    "worst_week": -13.6,
+    "worst_month": -22.3
+   }
+  }
+ },
+ "note": "bot = most severe of six-since-2000-01-03 and all7-since-2011-04-01 (covers 2008 too)"
+}
