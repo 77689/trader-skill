@@ -56,6 +56,15 @@ branch of your memebot-data repo every 5 minutes, using the login your memebot
 sync already has. `start.sh` starts it. Say "check the stock bot" and Claude
 reads that branch.
 
+Each pass also runs `vault_sync.sh`, which keeps the Obsidian vault
+(Documents/ClaudeMemory on the phone) and the `claude-vault` branch in step both
+ways: edits made in Obsidian go up, Claude's edits come down. Obsidian's own
+settings stay on the phone. If both sides changed the same lines nothing is
+merged; the phone keeps its version and pushes it to `claude-vault-phone` for
+Claude to merge. It never syncs an empty vault folder. Set it up once with
+`bash ~/trader-skill/stockbot/vault_sync.sh setup`; the status is in
+`~/stockbot-data/vault_sync_status.txt`.
+
 ## Vs the S&P 500 and the Nasdaq, and 13F timing
 
 The Stocks tab compares each sleeve with putting the same dollars into SPY and

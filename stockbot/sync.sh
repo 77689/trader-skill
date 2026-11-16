@@ -4,10 +4,12 @@
 # Uses the same GitHub login your memebot sync already uses (read from
 # ~/memebot-data git remote). A separate branch, so it never touches the memebot
 # sync. Loops every 5 minutes. "sync.sh once" runs a single pass.
+# Each pass also keeps the Obsidian vault in step both ways (vault_sync.sh; does nothing until it's set up).
 DATA="${STOCKBOT_DATA:-$HOME/stockbot-data}"
 SRC_REPO="${MEMEBOT_DIR:-$HOME/memebot-data}"
 WORK="${STOCKBOT_SYNC_DIR:-$HOME/stockbot-sync}"
 BRANCH="stock-data"
+VAULT_SYNC="$(cd "$(dirname "$0")" && pwd)/vault_sync.sh"
 
 setup() {
   [ -d "$WORK/.git" ] && return 0
@@ -38,6 +40,7 @@ pass() {
       copy "$DATA/sleeves/$s/trader/$f.json" "sleeves/$s/$f.json"
     done
   done
+  copy "$DATA/vault_sync_status.txt" "vault_sync_status.txt"
   if [ -f "$DATA/config.json" ]; then   # keep your email out of the repo
     mkdir -p stock
     sed 's/"sec_user_agent": *"[^"]*"/"sec_user_agent": "(hidden)"/' "$DATA/config.json" > stock/config.json
@@ -53,8 +56,11 @@ pass() {
   fi
 }
 
-if [ "$1" = "once" ]; then pass; exit $?; fi
+vault() { [ -f "$VAULT_SYNC" ] && bash "$VAULT_SYNC" > /dev/null 2>&1; }
+
+if [ "$1" = "once" ]; then pass; r=$?; vault; exit $r; fi
 while true; do
   pass
+  vault
   sleep 300
 done
