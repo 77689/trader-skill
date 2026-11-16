@@ -287,7 +287,10 @@ is slow the glow turns itself off (the "glow" button turns it back on).
   together from 5.6% to 7.6% a year. SPY made 8.2% with a -55% drop.
 - **Stays running**: `run.sh` restarts the bot if it crashes or is killed, and `keepalive.sh`
   is run by Android every 15 minutes and after a reboot (needs the Termux:API app).
-  `stop.sh` turns both off.
+  `stop.sh` turns both off. `boot.sh` (job 4243, set up by `start.sh`) starts the memebot once
+  after the phone restarts (`~/memebot/start.sh`; a memebot stopped on purpose stays stopped
+  until the next restart) and brings the dashboard back whenever it is down. The share link
+  stays manual. Off: `termux-job-scheduler --cancel --job-id 4243`.
 - **Stocks tab**: tabs fit one line, sections fold (the page remembers which are open and keeps
   its place when it refreshes), holdings show value and gain first, orders and filings fit a phone.
 - **Charts tab**: the 26-year test panel, and each strategy's scorecard row says what the test

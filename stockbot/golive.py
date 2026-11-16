@@ -133,7 +133,7 @@ def html(e):
             else '%d of %d met &middot; <span class="muted">not ready yet</span>' % (met, len(rows)))
     return ('<h2>Go-live checklist</h2><div class="gl">'
             '<div class="gl-h">%s</div>%s'
-            '<div class="gl-n muted">Also before real money: Termux:Boot set up so it restarts on its own, new Alpaca '
+            '<div class="gl-n muted">Also before real money: see everything come back by itself after a phone restart, new Alpaca '
             'keys, start with $500 to $1,000 you could lose, and expect real fills and taxes to be a bit worse than '
             'paper. Rules set Nov 13 2026; bot started %s. It can only trade paper until the code is changed '
             'on purpose.</div></div>' % (head, "".join(body), e(start)))
