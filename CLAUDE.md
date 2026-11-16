@@ -10,5 +10,8 @@
   (`stockbot/vault_sync.sh`, called by sync.sh), so edit it with normal commits on top and never
   force-push. If the phone hits a conflict it pushes its side to `claude-vault-phone`: merge that
   into `claude-vault`.
+- Rafael's standing rules: anything new about the bots (changes, results, decisions, commands,
+  to-dos) also goes into the vault in the same session, in the matching note or a new one linked
+  from Home.md. And read the vault for context whenever a bot task needs it.
 - No keys in the repo: Alpaca keys live in `~/.stockbot_env` and the Tiingo key in `~/.tiingo_key`,
   both on the phone only. The bot trades paper only; going live is a deliberate code change.
