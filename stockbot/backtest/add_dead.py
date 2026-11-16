@@ -26,7 +26,7 @@ MANUAL = {"CTRA~t": [858470, "Coterra Energy"], "DAY~t": [1725057, "Dayforce"], 
           "WBD~t": [1437107, "Warner Bros. Discovery"], "DISCK~w": [1437107, "Discovery"], "XL~w": [875159, "XL Group"],
           "ANRZQ~t": [1301063, "Alpha Natural Resources"], "ARNC~w": [4281, "Arconic"], "CMCSK~w": [1166691, "Comcast"],
           "FOXA~w": [1308161, "Twenty-First Century Fox"], "GENZ": [732485, "Genzyme"], "HSH~w": [23666, "Hillshire Brands"],
-          "SUNEQ~a": [945436, "SunEdison"]}
+          "SUNEQ~a": [945436, "SunEdison"], "CDAY~f": [1725057, "Ceridian HCM"]}
 added, nomatch = {}, []
 for secname, n in sorted(need.items()):
     if secname in MANUAL:
@@ -97,24 +97,39 @@ json.dump(CIKS, open(os.path.join(H, "sec_ciks.json"), "w"))
 # build_data joined the two), Tiingo on its own, and the Internet Archive files. "close_is_raw" tells
 # stage2.raw_px the close is already as traded (Yahoo's closes are not: raw_px undoes later splits for those).
 SPL = D.get("spliced", {})
-mine = sorted(s for s in set(CIKS) | set(added) if s.endswith(("~w", "~t", "~a")))
+mine = sorted(s for s in set(CIKS) | set(added) if s.endswith(("~w", "~t", "~a", "~f")))
 names = {s: (added[s][1] if s in added else s.split("~")[0]) for s in mine}
 
 
-def tiingo_raw(t, after=""):
-    """Tiingo's as-traded rows [date, o, h, l, close, adj close, volume] after `after`, and its splits."""
+def tiingo_raw(t, after="", before="0000"):
+    """Tiingo's as-traded rows [date, o, h, l, close, adj close, volume] outside before..after, and its splits."""
     f = os.path.join(H, "tiingo", t + ".json")
     if not os.path.exists(f):
         return [], []
     out, splits = [], []
     for d, o, h, l, c, v, raw, split, div in json.load(open(f))["rows"]:
-        if d <= after or d < "2008-01-01" or not raw or not c:
+        if before <= d <= after or d < "2008-01-01" or not raw or not c:
             continue
         k = raw / c
         out.append([d, o * k, h * k, l * k, raw, c, v])
         if split and abs(split - 1) > 1e-9:
             splits.append([d, split, 1])
     return out, splits
+
+
+def fnspid_raw(t, after="", before="0000"):
+    """FNSPID's rows outside before..after. Its close is Yahoo's, which is already split-adjusted: these are
+    used only where the company had no split between the row and the end of the file (checked by hand for
+    the eight FNSPID companies), so it is the price as traded."""
+    f = os.path.join(H, "fnspid", t + ".json")
+    if not os.path.exists(f):
+        return [], []
+    return [[d, o, h, l, raw, c, v] for d, o, h, l, c, v, raw in json.load(open(f))["rows"]
+            if not (before <= d <= after) and d >= "2008-01-01" and raw], []
+
+
+def raw_rows(t, source, after="", before="0000"):
+    return (fnspid_raw if source == "fnspid" else tiingo_raw)(t, after, before)
 
 
 wiki = {s.split("~")[0].replace(".", "_"): s for s in mine if s.endswith("~w")}
@@ -138,12 +153,12 @@ for s, rr in rows.items():
                 splits.append([r[ix["date"]], sr, 1])
         except ValueError:
             continue
-    if s in SPL and out:                                 # the same company carried on by Tiingo
-        more, more_splits = tiingo_raw(s.split("~")[0], after=out[-1][0])
-        out += more; splits += more_splits; joined += 1
+    if s in SPL and out:                                 # the same company carried on by Tiingo or FNSPID
+        more, more_splits = raw_rows(s.split("~")[0], SPL[s].get("source", "tiingo"), after=out[-1][0], before=out[0][0])
+        out = sorted(out + more); splits = sorted(splits + more_splits); joined += 1
     json.dump({"rows": out, "splits": splits, "name": names[s], "type": "EQUITY", "close_is_raw": True},
               open(os.path.join(H, "px", s + ".json"), "w"))
-print("price files written for", len(rows), "WIKI companies,", joined, "of them carried on by Tiingo")
+print("price files written for", len(rows), "WIKI companies,", joined, "of them carried on by Tiingo or FNSPID")
 n = 0
 for s in mine:
     if s.endswith("~t"):
@@ -153,6 +168,15 @@ for s in mine:
                       open(os.path.join(H, "px", s + ".json"), "w"))
             n += 1
 print("price files written for", n, "Tiingo-only companies")
+n = 0
+for s in mine:
+    if s.endswith("~f"):
+        out, splits = fnspid_raw(s.split("~")[0])
+        if out:
+            json.dump({"rows": out, "splits": splits, "name": names[s], "type": "EQUITY", "close_is_raw": True},
+                      open(os.path.join(H, "px", s + ".json"), "w"))
+            n += 1
+print("price files written for", n, "FNSPID-only companies")
 n = 0
 for s in mine:
     if s.endswith("~a"):

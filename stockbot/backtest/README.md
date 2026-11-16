@@ -84,3 +84,21 @@ $2,500 -> $1,000, TQQQ $1,000 -> $2,500, same $16,000 in all. `stage3.py` now re
 and the panel says the split was picked from the same history. On the phone the Berkshire sleeve
 sells down to its new size at its next daily plan (`write_portfolio(owe=True)` shows the cut as cash
 owed to the rebalance tool) and the TQQQ sleeve buys up to its new size the same day.
+
+## Hugging Face (Nov 15 2026)
+
+Searched the Hub for free daily prices that include companies that no longer trade. What is there:
+- `paperswithbacktest/Stocks-Daily-Price` (and public copies of it): its own card says it is
+  survivorship-biased (3.5% of its symbols delisted); their survivorship-free file needs a paid
+  subscription.
+- A 5 GB upload named CRSP with no description: CRSP is paid, licensed data, so it was not used.
+- FNSPID (`Zihan1004/FNSPID`, CC BY-NC 4.0): Yahoo-based prices for 7,693 tickers collected around
+  2020-2023. `fnspid_extract.py` takes the 8 files that are the same company as a missing one
+  (ATGE, CDAY, COG, DISCA, EQR, FRC, INFO, WRK); build_data.py joins them onto WIKI (checked by their
+  daily moves) or uses them alone (Ceridian).
+
+Also fixed: build_data's join now also takes the other source's days before WIKI starts (Andeavor:
+WIKI has it only from its 2017 rename, Tiingo from 2006), and Adtalem reads WIKI's DeVry (DV).
+Coverage: 2007-2010 up about a point, 2018-2023 now 98.3-99.8%. Results did not move (none of these
+are among the 100 most-traded stocks or the Screener's picks). Still missing: about 12-24% of the
+index in 2000-2006, companies that closed before 2008; no free source has them.

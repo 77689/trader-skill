@@ -27,7 +27,7 @@ RENAME = {"BK": "BNY", "MMC": "MRSH", "PKI": "RVTY", "ABC": "COR", "RE": "EG", "
           "PX": "LIN", "HRS": "LHX", "JEC": "J", "PCLN": "BKNG", "KFT": "MDLZ", "KORS": "CPRI", "COH": "TPR",
           "CBG": "CBRE", "DPS": "KDP", "ADS": "BFH", "LUK": "JEF", "BBT": "TFC", "ZMH": "ZBH", "DLPH": "APTV",
           "HCN": "WELL", "CTL": "LUMN"}
-WIKI_ALIAS = {"AABA": "YHOO"}
+WIKI_ALIAS = {"AABA": "YHOO", "ATGE": "DV"}          # Adtalem was DeVry (DV) until 2017
 
 
 def members_by_month():
@@ -54,6 +54,8 @@ def yahoo(name):
 
 
 TI = os.path.join(H, "tiingo")
+FN = os.path.join(H, "fnspid")  # FNSPID's Yahoo-based prices (Hugging Face, Zihan1004/FNSPID, CC BY-NC 4.0): only the files
+                                # left in this folder, each checked against known prices (EQ, FI and IAC were other companies)
 apart = {}                      # WIKI ticker -> why Tiingo's series wasn't joined to it
 
 
@@ -66,10 +68,19 @@ def tiingo_rows(name):
     return rows if len(rows) >= 120 else None
 
 
-def splice(w, t):
-    """WIKI's rows, then Tiingo's from the day after WIKI ends, Tiingo scaled to WIKI's level on the last
-    days both have. (rows, info), or None when the two series don't move together over their common days
-    (then it is not the same company, or one of them is broken)."""
+def fnspid_rows(name):
+    """FNSPID's rows for a ticker as [date, o, h, l, c, v, c] (adjusted for splits and dividends), or None."""
+    f = os.path.join(FN, name + ".json")
+    if not os.path.exists(f):
+        return None
+    rows = [tuple(r[:5]) + (r[5], r[4]) for r in json.load(open(f))["rows"] if r[4] and r[1]]
+    return rows if len(rows) >= 120 else None
+
+
+def splice(w, t, source="tiingo"):
+    """WIKI's rows, with the other source's rows before WIKI starts and after it ends, scaled to WIKI's level
+    on the days both have. (rows, info), or a reason string when the two series don't move together over
+    their common days (then it is not the same company, or one of them is broken)."""
     wc, tc = {r[0]: r[4] for r in w}, {r[0]: r[4] for r in t}
     common = sorted(set(wc) & set(tc))[-250:]
     if len(common) < 60:
@@ -80,11 +91,13 @@ def splice(w, t):
     drift = float(np.max(np.abs(lr - np.median(lr))))
     if corr < 0.95 or drift > 0.05:
         return "refused (corr %.3f, drift %.3f)" % (corr, drift)
-    k = float(np.exp(np.median(lr[-20:])))
-    end = w[-1][0]
+    k, k0 = float(np.exp(np.median(lr[-20:]))), float(np.exp(np.median(lr[:20])))
+    first, end = w[0][0], w[-1][0]
+    head = [(d, o * k0, h * k0, l * k0, c * k0, v / k0, c * k0) for d, o, h, l, c, v, _ in t if d < first]
     tail = [(d, o * k, h * k, l * k, c * k, v / k, c * k) for d, o, h, l, c, v, _ in t if d > end]
-    return list(w) + tail, {"from": tail[0][0] if tail else None, "scale": round(k, 6), "corr": round(corr, 4),
-                            "drift": round(drift, 4), "days": len(tail)}
+    return head + list(w) + tail, {"from": tail[0][0] if tail else None, "scale": round(k, 6), "corr": round(corr, 4),
+                                   "drift": round(drift, 4), "days": len(tail), "before": head[0][0] if head else None,
+                                   "days_before": len(head), "source": source}
 
 
 def main():
@@ -155,6 +168,11 @@ def main():
                     r, spliced[name + "~w"] = s
                 else:
                     apart[name] = s                                 # Tiingo's goes in on its own (tsec) if it is not refused
+            f = fnspid_rows(name.replace("_", "."))
+            if f and name + "~w" not in spliced:                    # FNSPID only where Tiingo didn't carry it on
+                s = splice(r, f, "fnspid")
+                if isinstance(s, tuple):
+                    r, spliced[name + "~w"] = s
         idx = add(name + "~w", r) if r else None
         wcache[name] = idx
         return idx
@@ -170,6 +188,19 @@ def main():
             t = tiingo_rows(name)
             idx = add(name + "~t", t) if t else None
         tcache[name] = idx
+        return idx
+
+    fcache = {}
+
+    def fsec(name):
+        """FNSPID on its own (Ceridian, which listed after WIKI ended)."""
+        if name in fcache:
+            return fcache[name]
+        idx = None
+        if not wrows.get(name.replace(".", "_")):
+            f = fnspid_rows(name)
+            idx = add(name + "~f", f) if f else None
+        fcache[name] = idx
         return idx
 
     acache = {}
@@ -201,10 +232,11 @@ def main():
             if t in WIKI_ALIAS:
                 cands.append(("w", WIKI_ALIAS[t]))
             cands.append(("t", t))                                  # Tiingo, for companies WIKI doesn't have
+            cands.append(("f", t))                                  # FNSPID (Hugging Face), the same
             cands.append(("a", t))                                  # last resort: the Internet Archive files
             for kind, name in cands:
                 idx = (ysec(name) if kind == "y" else wsec(name) if kind == "w" else tsec(name) if kind == "t"
-                       else asec(name))
+                       else fsec(name) if kind == "f" else asec(name))
                 if idx is None:
                     continue
                 if idx not in spans:
@@ -242,7 +274,7 @@ def main():
             continue
         y = mo[:4]
         a = by.setdefault(y, [0, 0, 0])
-        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a", "~t")))
+        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a", "~t", "~f")))
     for y in sorted(by):
         a = by[y]
         print(y, "members %d  covered %.1f%%  (from the Kaggle archive %.1f%%)" % (a[0] // 12, a[1] / a[0] * 100, a[2] / a[0] * 100))
