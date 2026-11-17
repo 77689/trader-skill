@@ -17,5 +17,8 @@
 - Rafael's standing rules: anything new about the bots (changes, results, decisions, commands,
   to-dos) also goes into the vault in the same session, in the matching note or a new one linked
   from Home.md. And read the vault for context whenever a bot task needs it.
+- Every bot task runs through the agent crew in the vault's `bots/agent-crew.md` (Boss, Scout,
+  Planner, Builders, Checker, Fixer, Shipper, Watcher, Librarian); read `bots/lessons.md` before
+  starting and add a line to it after.
 - No keys in the repo: Alpaca keys live in `~/.stockbot_env` and the Tiingo key in `~/.tiingo_key`,
   both on the phone only. The bot trades paper only; going live is a deliberate code change.
