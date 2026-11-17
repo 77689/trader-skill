@@ -8,7 +8,7 @@ def rets(v, k): v = np.asarray(v, float)[k:]; return v[1:] / v[:-1] - 1
 def combo(names, w, k):  # buy and hold sum, like the backtest's bot line
     tot = sum(w[n] * np.asarray(P[n], float)[k:] / P[n][k] for n in names); return tot[1:] / tot[:-1] - 1
 def run(label, bench, models, names):
-    np.random.seed(1); s = SPA(-bench, -np.column_stack(models), reps=2000, block_size=21); s.compute()
+    np.random.seed(1); s = SPA(-bench, -np.column_stack(models), reps=2000, block_size=21, seed=1); s.compute()
     yr = lambda r: (np.prod(1 + r) ** (252 / len(r)) - 1) * 100
     print("\n== %s  (p-value: under 0.05 = real edge, over 0.10 = could be luck)" % label)
     print("   SPA p-values  lower %.3f  consistent %.3f  upper %.3f" % tuple(s.pvalues))
@@ -19,7 +19,7 @@ r_spy0, r_spy1 = rets(spy, k0), rets(spy, ks)
 m = [rets(P[n], k0) for n in SIX] + [combo(SIX, bud, k0)]
 run("2000-2026: six parts + bot vs SPY", r_spy0, m, SIX + ["bot6"])
 for n, r in zip(SIX + ["bot6"], m):
-    np.random.seed(1); s = SPA(-r_spy0, -r[:, None], reps=2000, block_size=21); s.compute(); print("   alone vs SPY: %-9s p=%.3f" % (n, s.pvalues.iloc[1]))
+    np.random.seed(1); s = SPA(-r_spy0, -r[:, None], reps=2000, block_size=21, seed=1); s.compute(); print("   alone vs SPY: %-9s p=%.3f" % (n, s.pvalues.iloc[1]))
 # 2) all seven, 2011+
 ALL = SIX + ["screener"]; m = [rets(P[n], ks) for n in ALL] + [combo(ALL, bud, ks)]
 run("2011-2026: seven parts + bot vs SPY", r_spy1, m, ALL + ["bot7"])
