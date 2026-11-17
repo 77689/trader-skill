@@ -17,6 +17,8 @@
 - Rafael's standing rules: anything new about the bots (changes, results, decisions, commands,
   to-dos) also goes into the vault in the same session, in the matching note or a new one linked
   from Home.md. And read the vault for context whenever a bot task needs it.
+- Start every bot task at the vault's `brain.md` (decisions, ideas, lessons); log new decisions in
+  `decisions.md` and new ideas in `ideas.md`.
 - Every bot task runs through the agent crew in the vault's `bots/agent-crew.md` (Boss, Scout,
   Planner, Builders, Checker, Fixer, Shipper, Watcher, Librarian); read `bots/lessons.md` before
   starting and add a line to it after.
