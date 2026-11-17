@@ -15,7 +15,7 @@ FILES = [
  ("mdelcristo/NQ-F_1min_OHLCV_Parquet","README.md","nq_README.md"),
 ] + [("mdelcristo/NQ-F_1min_OHLCV_Parquet",f"NQ_1min_{y}.parquet",f"nq_{y}.parquet") for y in range(2015,2026)]
 def get(a):
-    repo,path,out=a
+    repo,path,out=a; out=os.path.join('raw',out)  # prep.py reads raw/
     if os.path.exists(out) and os.path.getsize(out)>0: return out,'cached'
     url=f"https://huggingface.co/datasets/{repo}/resolve/main/{urllib.parse.quote(path)}"
     for k in range(4):
@@ -23,5 +23,6 @@ def get(a):
             urllib.request.urlretrieve(url,out+'.part'); os.replace(out+'.part',out); return out,os.path.getsize(out)
         except Exception as e: err=repr(e)
     return out,'FAIL '+err
+os.makedirs('raw',exist_ok=True)
 with cf.ThreadPoolExecutor(6) as ex:
     for o,s in ex.map(get,FILES): print(o,s,flush=True)
