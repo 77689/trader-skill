@@ -1,0 +1,7 @@
+# Cloud-only tools for the backtests (never on the phone; the bot itself is stdlib only).
+# pip install --break-system-packages -r stockbot/backtest/requirements-cloud.txt
+numpy
+pandas
+arch          # Hansen SPA luck test
+quantstats    # cross-check Sharpe, drawdowns, monthly tables
+edgartools    # SEC filings and 13F holdings (berkshire copy), needs an SEC user agent
