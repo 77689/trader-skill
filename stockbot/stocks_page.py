@@ -172,11 +172,7 @@ def handles(pathname):
 def ny_time(iso):
     """'2026-11-13T21:30:00+00:00' -> '11-13 16:30' New York time."""
     try:
-        from zoneinfo import ZoneInfo
-        d = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        if d.tzinfo is None:
-            d = d.replace(tzinfo=datetime.timezone.utc)
-        return d.astimezone(ZoneInfo("America/New_York")).strftime("%m-%d %H:%M")
+        return stockbot.to_ny(datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))).strftime("%m-%d %H:%M")
     except Exception:
         return str(iso or "")[5:16].replace("T", " ")
 

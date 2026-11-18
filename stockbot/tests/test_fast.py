@@ -130,6 +130,21 @@ check("three sections in order", 0 < i1 < i2 < i3, (i1, i2, i3))
 check("filings only under SEC, Alpaca only under Alpaca, Yahoo last", i1 < page.find("UNH 8-K: past financials") < i2 < page.find("Apple Q4 results beat") < i3 < page.find("Old Yahoo headline"))
 check("source shown on Alpaca rows", '<span class="muted">benzinga</span>' in page)
 check("NY time column", "time (NY)" in page and stocks_page.ny_time("2026-11-13T21:30:00+00:00") == "11-13 16:30" and stocks_page.ny_time(None) == "")
+# Termux's Python has no time-zone database: the built-in US rule must give the same answers
+import builtins
+_imp = builtins.__import__
+builtins.__import__ = lambda n, *a, **k: (_ for _ in ()).throw(ImportError(n)) if n == "zoneinfo" else _imp(n, *a, **k)
+try:
+    u = lambda s: datetime.datetime.fromisoformat(s)
+    ny = lambda s: stockbot.to_ny(u(s)).strftime("%m-%d %H:%M")
+    got = [ny("2026-11-13T21:30:00+00:00"), ny("2026-07-01T14:30:00+00:00"),
+           ny("2026-03-08T06:59:00+00:00"), ny("2026-03-08T07:00:00+00:00"),   # spring forward Mar 8
+           ny("2026-11-01T05:59:00+00:00"), ny("2026-11-01T06:00:00+00:00"),   # fall back Nov 1
+           ny("2026-11-13T16:30:00-05:00"), stocks_page.ny_time("2026-11-13T21:30:00Z")]
+    check("NY time without a time-zone database", got == ["11-13 16:30", "07-01 10:30", "03-08 01:59", "03-08 03:00",
+          "11-01 01:59", "11-01 01:00", "11-13 16:30", "11-13 16:30"], got)
+finally:
+    builtins.__import__ = _imp
 stockbot.save("fast_news.json", {})
 p0 = stocks_page.render("/stocks", {}, "")
 check("not running yet", p0.count("fast check not running yet") == 2)

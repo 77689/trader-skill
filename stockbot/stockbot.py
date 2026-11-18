@@ -606,12 +606,26 @@ def cooling(sleeve):
             and x.get("loss", True)}
 
 
-def ny_now():
+def to_ny(d):
+    """Aware datetime (naive = UTC) -> naive New York time. Termux's Python has no time-zone
+    database, so without one this applies the US rule: daylight time from 2 am on the second
+    Sunday of March to 2 am on the first Sunday of November."""
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=datetime.timezone.utc)
     try:
         from zoneinfo import ZoneInfo
-        return datetime.datetime.now(ZoneInfo("America/New_York")).replace(tzinfo=None)
+        return d.astimezone(ZoneInfo("America/New_York")).replace(tzinfo=None)
     except Exception:
-        return now()
+        u = d.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        def sunday(month, nth):
+            first = datetime.datetime(u.year, month, 1)
+            return first + datetime.timedelta(days=(6 - first.weekday()) % 7 + 7 * (nth - 1))
+        summer = sunday(3, 2) + datetime.timedelta(hours=7) <= u < sunday(11, 1) + datetime.timedelta(hours=6)
+        return u - datetime.timedelta(hours=4 if summer else 5)
+
+
+def ny_now():
+    return to_ny(datetime.datetime.now(datetime.timezone.utc))
 
 
 def trading_days(alpaca, state):
@@ -2154,9 +2168,7 @@ def main():
         for i in r["items"][:8]:
             when = (i.get("time") or "")[5:16].replace("T", " ") + " UTC"
             try:
-                from zoneinfo import ZoneInfo
-                when = datetime.datetime.fromisoformat(i["time"]).astimezone(
-                    ZoneInfo("America/New_York")).strftime("%m-%d %H:%M")
+                when = to_ny(datetime.datetime.fromisoformat(i["time"].replace("Z", "+00:00"))).strftime("%m-%d %H:%M")
             except Exception:
                 pass
             print("  %s  %-6s %s" % (when, ",".join(i["touches"])[:6], i["title"][:90]))
