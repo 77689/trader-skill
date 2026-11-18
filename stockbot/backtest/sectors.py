@@ -1,11 +1,13 @@
 # Sector ETF rotation backtest: monthly, top 3 of the sector ETFs by 12-1 momentum, equal weight. python3 sectors.py <bigbt dir>
+# Same picks as the bot's momentum part (same ETFs, same rule). This version fills at the prior close and is fully
+# invested, the engine fills at the open with 97% invested, so the small "swap" gain is that difference, not a better rule.
 import pickle, json, sys, numpy as np, pandas as pd
 from arch.bootstrap import SPA
 B = sys.argv[1] if len(sys.argv) > 1 else "."
 d = pickle.load(open(B + "/parts.pkl", "rb")); P, spy, cal, k0, bud = d["parts"], np.asarray(d["spy"], float), pd.DatetimeIndex(d["cal"]), d["k0"], d["bud"]
 E = "XLK XLE XLV XLF XLY XLP XLI XLB XLU XLRE XLC".split()
 px = pd.DataFrame({e: pd.Series({r[0]: r[5] for r in json.load(open("%s/px/%s.json" % (B, e)))["rows"]}) for e in E})
-px.index = pd.DatetimeIndex(px.index); px = px.reindex(cal).ffill().where(lambda x: x.notna() & (x.index >= px.apply(pd.Series.first_valid_index)).T.values if False else x.notna())
+px.index = pd.DatetimeIndex(px.index); px = px.reindex(cal).ffill()
 A = px.values; R = np.vstack([np.full((1, len(E)), np.nan), A[1:] / A[:-1] - 1]); N = len(cal)
 def run(bp):
     w = np.zeros(len(E)); r = np.zeros(N); tr = np.zeros(N); first = pd.Series(cal.to_period("M")).ne(pd.Series(cal.to_period("M")).shift()).values
