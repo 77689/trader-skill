@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(//data/data/com.termux/files/home/.stockbot_env)",
+      "Read(//data/data/com.termux/files/home/.tiingo_key)",
+      "Read(//termux/.stockbot_env)",
+      "Read(//termux/.tiingo_key)",
+      "Edit(//data/data/com.termux/files/home/.stockbot_env)",
+      "Edit(//data/data/com.termux/files/home/.tiingo_key)",
+      "Bash(cat ~/.stockbot_env*)",
+      "Bash(cat /data/data/com.termux/files/home/.stockbot_env*)",
+      "Bash(cat /data/data/com.termux/files/home/.tiingo_key*)",
+      "Bash(cat /termux/.stockbot_env*)",
+      "Bash(cat /termux/.tiingo_key*)"
+    ]
+  }
+}
