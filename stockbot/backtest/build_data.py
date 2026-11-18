@@ -217,6 +217,24 @@ def main():
         acache[name] = idx
         return idx
 
+    hcache = {}
+
+    def hsec(name):
+        """Recovered dead companies (hfdead, copied into px/<T>~h.json, close is as traded): last resort after the Internet Archive."""
+        if name not in hcache:
+            f, idx = os.path.join(H, "px", name + "~h.json"), None
+            if os.path.exists(f):
+                rr, prev = [], None
+                for d, o, h, l, raw, c, v in json.load(open(f))["rows"]:
+                    # junk bar (e.g. CEG open 0.01): open far from BOTH the close and the day before's close.
+                    # A real crash (SOV 2008-09-29) opens near the day before's close, so it stays.
+                    if raw and c and not (not 0.5 <= o / raw <= 2 and (prev is None or not 0.67 <= o / prev <= 1.5)):
+                        rr.append((d, o * c / raw, h * c / raw, l * c / raw, c, v, raw))
+                    prev = raw or prev
+                idx = add(name + "~h", rr)
+            hcache[name] = idx
+        return hcache[name]
+
     def span(idx):
         ok = np.where(np.isfinite(data[idx]["c"]))[0]
         return cal[ok[0]], cal[ok[-1]]
@@ -233,10 +251,11 @@ def main():
                 cands.append(("w", WIKI_ALIAS[t]))
             cands.append(("t", t))                                  # Tiingo, for companies WIKI doesn't have
             cands.append(("f", t))                                  # FNSPID (Hugging Face), the same
-            cands.append(("a", t))                                  # last resort: the Internet Archive files
+            cands.append(("a", t))                                  # the Internet Archive files
+            cands.append(("h", t))                                  # last resort: recovered dead companies (hfdead)
             for kind, name in cands:
                 idx = (ysec(name) if kind == "y" else wsec(name) if kind == "w" else tsec(name) if kind == "t"
-                       else fsec(name) if kind == "f" else asec(name))
+                       else fsec(name) if kind == "f" else asec(name) if kind == "a" else hsec(name))
                 if idx is None:
                     continue
                 if idx not in spans:
@@ -274,7 +293,7 @@ def main():
             continue
         y = mo[:4]
         a = by.setdefault(y, [0, 0, 0])
-        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a", "~t", "~f")))
+        a[0] += len(ms); a[1] += len(resolve[mo]); a[2] += sum(1 for t, i in resolve[mo].items() if secs[i].endswith(("~w", "~a", "~t", "~f", "~h")))
     for y in sorted(by):
         a = by[y]
         print(y, "members %d  covered %.1f%%  (from the Kaggle archive %.1f%%)" % (a[0] // 12, a[1] / a[0] * 100, a[2] / a[0] * 100))
