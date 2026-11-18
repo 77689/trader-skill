@@ -118,7 +118,7 @@ DEFAULTS = {
     "congress_days_back": 14,
     "cycle_seconds": 300,
     "live_seconds": 15,            # live prices for the dashboard every 15 s (Alpaca data, free IEX feed)
-    "daily_report": True,          # after each close: a phone notification, "the bot is doing good / bad"
+    "daily_report": True,          # after each close: a phone notification, judged against SPY (good / made money but SPY did better / lost less than SPY / bad)
     "news_seconds": 60,            # fast news: SEC's latest-filings feed + Alpaca headlines this often (0 = off)
     "refresh_days": 7,
     "sec_user_agent": "",
@@ -1574,7 +1574,10 @@ def report_text(day=None):
     d, ds = g - pg, sg - psg
     dp, dsp = d / base * 100, ds / base * 100
     tp = g / cin * 100
-    title = "the bot is doing good" if d >= 0 else "the bot is doing bad"
+    if d >= 0:
+        title = "the bot is doing good" if d >= ds else "the bot made money, SPY did better"
+    else:
+        title = "red day, the bot lost less than SPY" if d > ds else "the bot is doing bad"
     text = ("today %s$%.2f (%+.2f%%), same money in SPY %s$%.2f (%+.2f%%). total %s$%.2f (%+.2f%%) on $%s"
             % ("+" if d >= 0 else "-", abs(d), dp, "+" if ds >= 0 else "-", abs(ds), dsp,
                "+" if g >= 0 else "-", abs(g), tp, format(cin, ",.0f")))

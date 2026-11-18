@@ -206,8 +206,9 @@ point, so daily and monthly numbers stay exact as the file grows.
 ## Daily good / bad notification
 
 Once per trading day after the 4 PM close the bot sends a phone notification:
-"the bot is doing good" if it made money that day, "the bot is doing bad" if it
-lost, with the day's dollars, the same money in SPY, and the total since the
+"the bot is doing good" if it made money and kept up with SPY, "the bot made money,
+SPY did better" if it made money but SPY made more, "red day, the bot lost less than
+SPY" if it lost but less than SPY, "the bot is doing bad" otherwise, with the day's dollars, the same money in SPY, and the total since the
 start. `python stockbot.py report` sends the latest one right away. Turn it off
 with `"daily_report": false` in config.json.
 
