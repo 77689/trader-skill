@@ -211,10 +211,11 @@ def main(argv=None):
     except KeyRejected as ex:
         log("%s: save it again with --save-key" % ex)
     json.dump(prog, open(prog_f, "w"))
-    found = {t: n for t, n in prog["done"].items() if n}
-    summary = {"checked_at": time.strftime("%Y-%m-%d %H:%M"), "targets": len(targets), "asked": len(prog["done"]),
+    done = {t: n for t, n in prog["done"].items() if t in targets}   # progress.json is shared by every targets file
+    found = {t: n for t, n in done.items() if n}
+    summary = {"checked_at": time.strftime("%Y-%m-%d %H:%M"), "targets": len(targets), "asked": len(done),
                "usable": len(found), "days": sum(found.values()), "found": found,
-               "finished": len(prog["done"]) == len(targets)}
+               "finished": len(done) == len(targets)}
     json.dump(summary, open(os.path.join(OUT, "summary.json"), "w"), indent=1)
     up = copy_to_sync(log)
     log("%s: prices for %d of %d companies (%d trading days)%s" % (

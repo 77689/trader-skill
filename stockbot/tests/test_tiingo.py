@@ -71,6 +71,11 @@ summ = json.load(open(os.path.join(D, "data", "tiingo", "summary.json")))
 check("summary", summ["finished"] and summ["usable"] == 2 and summ["found"] == {"CELG": 2, "NET": 1}, summ)
 check("copied for upload, without the progress file", os.path.exists(os.path.join(D, "sync", "stock", "tiingo", "CELG.json"))
       and not os.path.exists(os.path.join(D, "sync", "stock", "tiingo", "progress.json")))
+tf_all = tf; tf = os.path.join(D, "targets2.json"); json.dump({"CELG": {}}, open(tf, "w"))
+_, log2b = run(); tf = tf_all
+summ = json.load(open(os.path.join(D, "data", "tiingo", "summary.json")))
+check("another targets file counts only its own companies", "done: prices for 1 of 1 companies (2 trading days)" in log2b
+      and summ["asked"] == 1 and summ["found"] == {"CELG": 2}, log2b)
 ti.OUT = os.path.join(D, "data2", "tiingo"); mode["all"] = ti.NetError; n0 = len(calls)
 _, log3 = run()
 check("no signal 3 times in a row: stops, nothing marked done", len(calls) - n0 == 3 and "stopping here" in log3
