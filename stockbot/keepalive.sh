@@ -9,3 +9,5 @@ if ! pgrep -f "stockbot.py run" > /dev/null || ! pgrep -f "stockbot/sync.sh" > /
   echo "$(date '+%Y-%m-%d %H:%M:%S') keepalive: the bot was not running, starting it" >> "$HOME/stockbot-data/stockbot.log"
   STOCKBOT_KEEPALIVE=1 bash "$HERE/start.sh" > /dev/null 2>&1
 fi
+# once a night: pull Claude's tested updates (autopull.sh), in the background so a slow download never delays the check above
+nohup bash "$HERE/autopull.sh" > /dev/null 2>&1 &

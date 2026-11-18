@@ -41,6 +41,7 @@ pass() {
     done
   done
   copy "$DATA/vault_sync_status.txt" "vault_sync_status.txt"
+  copy "$DATA/autopull_status.txt" "autopull_status.txt"
   if [ -f "$DATA/config.json" ]; then   # keep your email out of the repo
     mkdir -p stock
     sed 's/"sec_user_agent": *"[^"]*"/"sec_user_agent": "(hidden)"/' "$DATA/config.json" > stock/config.json
