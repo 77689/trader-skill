@@ -436,7 +436,7 @@ SCRIPT = """<script>
 </script>"""
 
 
-SHUT = ("momentum picks", "trend signals", "tqqq", "berkshire targets", "screener", "congress", "sec filings",
+SHUT = ("momentum picks", "trend signals", "residual momentum picks", "tqqq", "berkshire targets", "screener", "congress", "sec filings",
         "alpaca news", "yahoo headlines", "news check", "tax", "price alerts")
 
 
@@ -455,7 +455,7 @@ def fold(parts):
 
 
 NAMES = {"berkshire": "Berkshire", "screener": "Screener", "swing": "Swing", "breakout": "Breakout",
-         "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ"}
+         "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ", "resmom": "Residual momentum"}
 WAITING = ("new", "accepted", "pending_new", "accepted_for_bidding", "pending_replace", "held", "calculated", "")
 STATUS = {"partially_filled": "part filled", "canceled": "canceled", "expired": "expired", "rejected": "rejected",
           "dry_run": "not sent", "error": "error"}
@@ -782,6 +782,11 @@ def page(cfg):
     out.append("<h2>Trend signals (%s)</h2>" % e(tp.get("month", "next market day")))
     out.append(table(["asset", "month-end", "10-mo avg", "vs avg", ""], rows, "signals appear on its first market day"))
     out.append('<div class="note muted">both rebalance on the first market day of each month.</div>')
+    rp = stockbot.load("resmom_plan.json", {})
+    rows = [[sym_link(x["symbol"]), "%.2f" % x["score"], '<span class="ok">HOLD</span>' if x["hold"] else '<span class="muted">-</span>']
+            for x in rp.get("rows", [])]
+    out.append("<h2>Residual momentum picks (%s)</h2>" % e(rp.get("month", "next market day")))
+    out.append(table(["stock", "score", ""], rows, "picks appear on its first market day"))
     qp = stockbot.load("tqqq_plan.json", {})
     x = qp.get("rows") or {}
     out.append("<h2>TQQQ rocket (%s)</h2>" % e(qp.get("month", "next market day")))

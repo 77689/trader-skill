@@ -26,9 +26,9 @@ import urllib.request
 UA = {"User-Agent": "Mozilla/5.0 (stockbot)"}
 
 
-def fetch(sym, adjusted=False):
+def fetch(sym, adjusted=False, years=2):
     y = sym.replace(".", "-")
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=2y&interval=1d" % y
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/%s?range=%dy&interval=1d" % (y, years)
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as r:
         d = json.loads(r.read().decode())["chart"]["result"][0]
     q = d["indicators"]["quote"][0]
@@ -46,7 +46,7 @@ def fetch(sym, adjusted=False):
     return rows
 
 
-def bars(symbols, cache_dir, today, adjusted=False):
+def bars(symbols, cache_dir, today, adjusted=False, years=2):
     """{symbol: [[date, o, h, l, c, v], ...]} refreshed once per day."""
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -60,7 +60,7 @@ def bars(symbols, cache_dir, today, adjusted=False):
         except Exception:
             pass
         try:
-            rows = fetch(s, adjusted)
+            rows = fetch(s, adjusted) if years == 2 else fetch(s, adjusted, years)
             with open(f, "w") as fh:
                 json.dump({"fetched": today, "rows": rows}, fh)
             return s, rows

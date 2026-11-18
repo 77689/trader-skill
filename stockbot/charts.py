@@ -611,7 +611,7 @@ def alloc_html(px):
                        % ("" if v > 0 else " zero", label, e(small), _money(v), v / total * 100,
                           ('<i style="width:%.1f%%"></i>' % (v / top * 100)) if v > 0 else ""))
         return "".join(out)
-    by_sleeve = sorted(((e(n.upper() if n == "tqqq" else n),
+    by_sleeve = sorted(((e("Residual momentum" if n == "resmom" else n.upper() if n == "tqqq" else n),
                          ("%d position%s" % (c, "" if c == 1 else "s")) if c else "nothing held", v)
                         for n, (v, c) in sl.items()), key=lambda x: -x[2])
     by_sym = sorted((('<a class="coin" href="/s?sym=%s">%s</a>' % (e(s), e(s)), ", ".join(who[s]), v)

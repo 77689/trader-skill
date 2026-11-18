@@ -40,7 +40,7 @@ check("total row adds up", S["total"]["n"] == 3 and abs(S["total"]["realized"] -
       and abs(S["total"]["open"] - sum(S[n]["open"] for n in stockbot.SLEEVES)) < 1e-9 and S["total"]["held"] == 2)
 h = scorecard.html({"AAA": 60.0, "SPY": 520.0}, stocks_page.e)
 check("html: counts, few-marker, table", "3 sales, 2 made money (67%)" in h and "too few to judge (3 of 20)" in h and "last sales" in h and h.count("<tr><td>") == 3)
-check("html: nothing sold yet rows", h.count("nothing sold yet") == 6)
+check("html: nothing sold yet rows", h.count("nothing sold yet") == 7)
 stockbot.save("ledger.json", L + [o("2026-03-%02d 09:31:00" % d, "breakout", "CCC", s, 1, 10.0 + d) for d in range(1, 22) for s in ("buy", "sell")])
 h = scorecard.html({}, stocks_page.e)
 check("21 sales: marker gone for that strategy, last 10 newest first", "21 sales" in h and h.count("<tr><td>") == 10 and h.index("03-21") < h.index("03-20"))

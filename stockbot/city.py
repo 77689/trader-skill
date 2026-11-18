@@ -64,7 +64,7 @@ def data():
         for sym, h in sorted(hold.items(), key=lambda kv: -kv[1]["cost"]):
             p = px.get(sym, h["avg"])
             pos.append({"sym": sym, "qty": h["qty"], "cost": round(h["cost"], 4), "px": p})
-        sleeves.append({"name": name, "label": "TQQQ" if name == "tqqq" else name.capitalize(), "pos": pos,
+        sleeves.append({"name": name, "label": {"tqqq": "TQQQ", "resmom": "Residual momentum"}.get(name, name.capitalize()), "pos": pos,
                         "realized": round(summ[name]["realized"], 2), "sales": summ[name]["n"],
                         "won": summ[name]["won"]})
     pnl_of = {(s["sleeve"], s["symbol"], s["time"]): s for s in sales}

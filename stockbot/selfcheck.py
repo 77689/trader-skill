@@ -10,10 +10,10 @@ A sleeve is as bad as its worst metric; the overall status is the worst sleeve.
 import argparse, datetime, json, os, sqlite3, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SLEEVES = ["berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "bot"]
+SLEEVES = ["berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom", "bot"]
 TRADE_SLEEVES = ("swing", "breakout")
 FALLBACK_NAMES = {"berkshire": "Berkshire", "screener": "Screener", "swing": "Swing", "breakout": "Breakout",
-                  "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ"}
+                  "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ", "resmom": "Residual momentum"}
 ORDER = {"ok": 0, "watch": 1, "flag": 2}
 MIN_DAYS = 6          # rows needed before a sleeve is judged at all
 WATCH_AT = 0.75

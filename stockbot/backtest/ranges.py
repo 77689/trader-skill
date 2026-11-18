@@ -117,6 +117,10 @@ def main():
     bot["note"] = ("most severe of the six parts together since %s and all seven since %s, at today's budgets"
                    % (six["from"], seven["from"]))
     bot["six"], bot["all7"] = six, seven
+    try:  # resmom is not in parts.pkl: keep the entry already in the file
+        sleeves["resmom"] = json.load(open(a.out))["sleeves"]["resmom"]
+    except Exception:
+        pass
     sleeves["bot"] = bot
     out = {"made": datetime.date.today().isoformat(), "from": cal[k0], "to": cal[-1], "sleeves": sleeves,
            "note": "bot = most severe of six-since-%s and all7-since-%s (covers 2008 too)" % (cal[k0], cal[ks])}

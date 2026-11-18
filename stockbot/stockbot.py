@@ -79,6 +79,8 @@ DEFAULTS = {
     "trend_budget": 2500,          # monthly: SPY/EFA/IEF/GLD, each only above its 10-month average
     "momentum_universe": ["XLK", "XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE", "XLC"],
     "momentum_top": 3,
+    "resmom_budget": 1000,         # new paper part, residual momentum, added Nov 17 2026 to collect live evidence; backtest: stockbot/backtest/resmom.py
+    "resmom_top": 20,
     "trend_assets": ["SPY", "EFA", "IEF", "GLD"],
     "cash_etf": "BIL",             # where trend parks money when an asset is below its average
     "tqqq_budget": 2500,           # 3x Nasdaq sleeve, only in calm uptrends (was 1000, see berkshire_budget);
@@ -125,8 +127,8 @@ DEFAULTS = {
 }
 
 
-SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq")
-MONTHLY = ("momentum", "trend", "tqqq")   # ETF sleeves on a schedule: no stop-losses, no news gate
+SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom")
+MONTHLY = ("momentum", "trend", "tqqq", "resmom")   # ETF sleeves on a schedule: no stop-losses, no news gate
 CORE = ("berkshire", "screener")
 
 
@@ -845,6 +847,41 @@ def momentum_weights(cfg, bars, month):
     return w, rank
 
 
+def resmom_weights(cfg, bars, month):
+    """Residual momentum (stockbot/backtest/resmom.py): SPY above its 200-day average, else T-bills; otherwise the top N
+    stocks by SPY-residual return over months t-12..t-2 divided by the residual stdev (36 monthly returns), equal weight."""
+    spy_d, spy_e = month_closes(bars.get("SPY", []), month)
+    if len(spy_d) < 200 or spy_d[-1] <= sum(spy_d[-200:]) / 200:
+        return {cfg["cash_etf"]: 1.0}, []
+    m = [spy_e[i + 1] / spy_e[i] - 1 for i in range(len(spy_e) - 37, len(spy_e) - 1)] if len(spy_e) >= 37 else []
+    if not m:
+        return {}, []
+    mm = sum(m) / 36
+    vm = sum((x - mm) ** 2 for x in m)
+    rank = []
+    for t in cfg["universe"]:
+        _, c = month_closes(bars.get(t, []), month)
+        if len(c) < 37:
+            continue
+        c = c[-37:]
+        r = [c[i + 1] / c[i] - 1 for i in range(36)]
+        mr = sum(r) / 36
+        beta = sum((a - mr) * (b - mm) for a, b in zip(r, m)) / vm
+        alpha = mr - beta * mm
+        e = [a - alpha - beta * b for a, b in zip(r, m)]
+        sd = (sum(x * x for x in e) / 36) ** 0.5       # residuals average 0 and np.std is population, like the backtest
+        if sd == 0:
+            continue
+        rank.append({"symbol": t, "score": round(sum(e[24:35]) / sd, 4), "beta": round(beta, 2)})
+    rank.sort(key=lambda x: -x["score"])
+    for i, x in enumerate(rank):
+        x["hold"] = i < cfg["resmom_top"]
+    top = rank[:cfg["resmom_top"]]
+    if len(top) < cfg["resmom_top"]:          # the backtest needs a full book of N; otherwise no rebalance
+        return {}, rank[:30]
+    return {x["symbol"]: 1.0 / len(top) for x in top}, rank[:30]
+
+
 def trend_weights(cfg, bars, month):
     """Each asset gets an equal slice; held only if its last month-end close is above
     its 10-month average, otherwise that slice goes to T-bills."""
@@ -911,15 +948,18 @@ def monthly_sleeve(name, cfg, alpaca, state, is_open):
     if not is_open or state.get(name + "_month") == month:
         return
     syms = {"momentum": cfg["momentum_universe"], "trend": cfg["trend_assets"] + [cfg["cash_etf"]],
-            "tqqq": ["QQQ", "TQQQ", "QLD", cfg["cash_etf"]]}[name]
-    b = signals.bars(syms, path("bars_adj"), today(), adjusted=True)
+            "tqqq": ["QQQ", "TQQQ", "QLD", cfg["cash_etf"]],
+            "resmom": list(cfg["universe"]) + ["SPY", cfg["cash_etf"]]}[name]
+    # resmom needs 37 month-ends: 5y of history in its own cache (momentum/trend keep the 2y files in bars_adj)
+    b = (signals.bars(syms, path("bars_adj5"), today(), adjusted=True, years=5) if name == "resmom"
+         else signals.bars(syms, path("bars_adj"), today(), adjusted=True))
     if len([s for s in syms if b.get(s)]) < len(syms) * 0.7 or (name == "tqqq" and not b.get("QQQ")):
         log(name, "price history missing, will retry")
         return
     if name == "tqqq":
         w, plan = tqqq_weights(cfg, b, state)
     else:
-        w, plan = (momentum_weights if name == "momentum" else trend_weights)(cfg, b, month)
+        w, plan = {"momentum": momentum_weights, "trend": trend_weights, "resmom": resmom_weights}[name](cfg, b, month)
     save(name + "_plan.json", {"time": stamp(), "month": month, "weights": w, "rows": plan})
     if not w:
         log(name, "no signal, will retry")
@@ -970,6 +1010,10 @@ def trend(cfg, alpaca, state, is_open):
 
 def tqqq(cfg, alpaca, state, is_open):
     monthly_sleeve("tqqq", cfg, alpaca, state, is_open)
+
+
+def resmom(cfg, alpaca, state, is_open):
+    monthly_sleeve("resmom", cfg, alpaca, state, is_open)
 
 
 # ---------- swing and breakout: daily-bar trades with stops ----------
@@ -1935,7 +1979,8 @@ def cycle(cfg, alpaca):
         log("stops", "ERROR", ex)
         status["errors"].append("stops: %s" % str(ex)[:200])
     for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout),
-                     ("momentum", momentum), ("trend", trend), ("tqqq", tqqq)):
+                     ("momentum", momentum), ("trend", trend), ("tqqq", tqqq),
+                     ("resmom", resmom)):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:
