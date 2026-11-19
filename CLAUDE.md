@@ -22,6 +22,10 @@
 - Every bot task runs through the agent crew in the vault's `bots/agent-crew.md` (Boss, Scout,
   Planner, Builders, Checker, Fixer, Shipper, Watcher, Librarian); read `bots/lessons.md` before
   starting and add a line to it after.
+- Research rules: every new backtest idea is logged in the vault's `bots/tries.md` and its result is
+  deflated for the number of tries (`stockbot/backtest/deflated.py`); data from 2024-01-01 on is locked
+  (`stockbot/backtest/holdout.py`) and used once per idea as a final exam. Unproven ideas that look good go
+  to `bots/experiments.md` (small live paper parts with a review date) only with Rafael's yes.
 - Always use ponytail: Builders make the smallest complete change (the ponytail skill) and the
   Checker reviews with ponytail-review.
 - No keys in the repo: Alpaca keys live in `~/.stockbot_env` and the Tiingo key in `~/.tiingo_key`,
