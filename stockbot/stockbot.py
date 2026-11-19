@@ -1872,7 +1872,7 @@ def record_history():
     for s in SLEEVES:
         net, bot, sg = bench_gain(s, px, spy)
         qg = bench_gain(s, px, qqq, "qqq")[2]
-        pt[s] = round(bot / net * 100, 3) if net > 0 else None
+        pt[s] = round(bot / net * 100, 3) if net > 0 and bot + net > 0 else None   # nothing held (sold out): no %, not -100%
         pt["in"] += net
         pt["bot"] += bot
         pt["spy"] += sg
