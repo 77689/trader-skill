@@ -57,11 +57,14 @@ TI = os.path.join(H, "tiingo")
 FN = os.path.join(H, "fnspid")  # FNSPID's Yahoo-based prices (Hugging Face, Zihan1004/FNSPID, CC BY-NC 4.0): only the files
                                 # left in this folder, each checked against known prices (EQ, FI and IAC were other companies)
 apart = {}                      # WIKI ticker -> why Tiingo's series wasn't joined to it
+OLD_OK = {"RSHCQ", "OMX", "ROH"}  # fetched under their old tickers (tiingo/<name>_old.json); WAMUQ/GAPTQ_old are other companies
 
 
 def tiingo_rows(name):
     """Tiingo's rows for a ticker as [date, o, h, l, c, v, c] (adjusted for splits and dividends), or None."""
     f = os.path.join(TI, name + ".json")
+    if not os.path.exists(f) and name in OLD_OK:
+        f = os.path.join(TI, name + "_old.json")
     if not os.path.exists(f):
         return None
     rows = [(r[0], r[1], r[2], r[3], r[4], r[5], r[4]) for r in json.load(open(f))["rows"] if r[4] and r[1]]
