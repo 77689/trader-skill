@@ -34,7 +34,7 @@ def dsr(returns, n_trials, var_sr=None):
 
 def load(path):
     if path.endswith(".json"):
-        return [float(x) for x in json.load(open(path))]
+        return [float(x[-1] if isinstance(x, list) else x) for x in json.load(open(path))]   # plain returns or [date, ret]
     out = []
     for row in csv.reader(open(path)):
         try:
