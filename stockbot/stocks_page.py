@@ -436,7 +436,7 @@ SCRIPT = """<script>
 </script>"""
 
 
-SHUT = ("momentum picks", "trend signals", "residual momentum picks", "tqqq", "berkshire targets", "screener", "congress", "sec filings",
+SHUT = ("momentum picks", "trend signals", "residual momentum picks", "noise-band", "tqqq", "berkshire targets", "screener", "congress", "sec filings",
         "alpaca news", "yahoo headlines", "news check", "tax", "price alerts")
 
 
@@ -455,7 +455,7 @@ def fold(parts):
 
 
 NAMES = {"berkshire": "Berkshire", "screener": "Screener", "swing": "Swing", "breakout": "Breakout",
-         "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ", "resmom": "Residual momentum"}
+         "momentum": "Momentum", "trend": "Trend", "tqqq": "TQQQ", "resmom": "Residual momentum", "noise": "Noise-band (day trades)"}
 WAITING = ("new", "accepted", "pending_new", "accepted_for_bidding", "pending_replace", "held", "calculated", "")
 STATUS = {"partially_filled": "part filled", "canceled": "canceled", "expired": "expired", "rejected": "rejected",
           "dry_run": "not sent", "error": "error"}
@@ -787,6 +787,10 @@ def page(cfg):
             for x in rp.get("rows", [])]
     out.append("<h2>Residual momentum picks (%s)</h2>" % e(rp.get("month", "next market day")))
     out.append(table(["stock", "score", ""], rows, "picks appear on its first market day"))
+    np_ = stockbot.load("noise_plan.json", {})
+    rows = [[e(x["time"]), "%.2f" % x["price"], "%.2f" % x["band"], "%.2f" % x["vwap"], x["action"]] for x in np_.get("rows", [])]
+    out.append("<h2>Noise-band day trades (%s)</h2>" % e(np_.get("day", "next market day")))
+    out.append(table(["time", "QQQ", "upper band", "VWAP", "did"], rows, "decisions appear every half hour from 10:00 on market days"))
     qp = stockbot.load("tqqq_plan.json", {})
     x = qp.get("rows") or {}
     out.append("<h2>TQQQ rocket (%s)</h2>" % e(qp.get("month", "next market day")))

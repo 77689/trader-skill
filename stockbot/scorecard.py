@@ -114,7 +114,7 @@ def html(px, e):
     rows = []
     for name in ("total",) + stockbot.SLEEVES:
         s = summ[name]
-        label = "all strategies" if name == "total" else name.upper() if name == "tqqq" else "Residual momentum" if name == "resmom" else name
+        label = "all strategies" if name == "total" else name.upper() if name == "tqqq" else "Residual momentum" if name == "resmom" else "Noise-band (day trades)" if name == "noise" else name
         if s["n"]:
             line1 = "%d sale%s, %d made money (%.0f%%)" % (s["n"], "" if s["n"] == 1 else "s", s["won"], s["win_rate"])
             bits = []

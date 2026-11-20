@@ -91,6 +91,20 @@ def worse(a, b, higher_is_worse=False):
     return max(a, b) if higher_is_worse else min(a, b)
 
 
+def noise_range():
+    """Noise-band day trades (intraday/out/QQQ__M_vwap_lo.csv = family M long only, VWAP): net daily returns at 1 bp a
+    side, from the first day it traded. Not in parts.pkl, so it is read from its own CSV (plain python)."""
+    import csv
+    rows = list(csv.DictReader(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "intraday", "out",
+                                                 "QQQ__M_vwap_lo.csv"))))
+    start = next(i for i, r in enumerate(rows) if float(r["turnover"]) > 0)
+    eq, v = [], 1000.0
+    for r in rows:
+        v *= 1 + float(r["gross"]) - float(r["turnover"]) * 0.0001
+        eq.append(v)
+    return metrics(eq, [r["date"] for r in rows], start)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=DEFAULT_DATA)
@@ -121,6 +135,7 @@ def main():
         sleeves["resmom"] = json.load(open(a.out))["sleeves"]["resmom"]
     except Exception:
         pass
+    sleeves["noise"] = noise_range()
     sleeves["bot"] = bot
     out = {"made": datetime.date.today().isoformat(), "from": cal[k0], "to": cal[-1], "sleeves": sleeves,
            "note": "bot = most severe of six-since-%s and all7-since-%s (covers 2008 too)" % (cal[k0], cal[ks])}

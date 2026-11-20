@@ -142,8 +142,8 @@ check("None, empty and junk last_time are due", sc.due(NOW, None) and sc.due(NOW
 
 # the real ranges file
 real = json.load(open(os.path.join(HERE, "..", "backtest_ranges.json")))
-need = {"berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom", "bot"}
-check("real ranges: 8 sleeves plus bot", set(real["sleeves"]) == need, set(real["sleeves"]))
+need = {"berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom", "noise", "bot"}
+check("real ranges: 9 sleeves plus bot", set(real["sleeves"]) == need, set(real["sleeves"]))
 check("real ranges: fields", all(real["sleeves"][n]["worst_drop"] < 0 and real["sleeves"][n]["longest_underwater_days"] > 0
       and real["sleeves"][n]["worst_week"] < 0 and real["sleeves"][n]["worst_month"] < 0 and real["sleeves"][n]["from"] for n in need))
 check("real ranges: trades for swing and breakout", all(real["sleeves"][n]["trades"]["n"] > 100 for n in ("swing", "breakout")))

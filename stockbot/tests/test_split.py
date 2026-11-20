@@ -16,7 +16,7 @@ def check(name, cond, got=""):
 
 B = stockbot.DEFAULTS
 check("new split", B["berkshire_budget"] == 1000 and B["tqqq_budget"] == 2500, (B["berkshire_budget"], B["tqqq_budget"]))
-check("same total as before", sum(B[s + "_budget"] for s in stockbot.SLEEVES) == 16000 + B["resmom_budget"])   # old total plus the new resmom part)
+check("same total as before", sum(B[s + "_budget"] for s in stockbot.SLEEVES) == 16000 + B["resmom_budget"] + B["noise_budget"])   # old total plus the new resmom and noise parts
 
 PX = {"AAPL": 356.0, "AXP": 325.0, "GOOGL": 295.0, "KO": 98.0, "BAC": 50.8}
 USD = {"AAPL": 690, "AXP": 537, "GOOGL": 395, "KO": 340, "BAC": 288}          # what the sleeve bought on Nov 12

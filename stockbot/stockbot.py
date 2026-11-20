@@ -31,6 +31,7 @@ import urllib.error
 import urllib.request
 
 import fastnews
+import noiseband
 import quality
 import signals
 
@@ -81,6 +82,7 @@ DEFAULTS = {
     "momentum_top": 3,
     "resmom_budget": 1000,         # new paper part, residual momentum, added Nov 17 2026 to collect live evidence; backtest: stockbot/backtest/resmom.py
     "resmom_top": 20,
+    "noise_budget": 1000,          # new paper part, QQQ noise-band day trades (long only, VWAP), added Nov 20 2026 to collect live evidence; backtest: stockbot/backtest/intraday (M_vwap_lo)
     "trend_assets": ["SPY", "EFA", "IEF", "GLD"],
     "cash_etf": "BIL",             # where trend parks money when an asset is below its average
     "tqqq_budget": 2500,           # 3x Nasdaq sleeve, only in calm uptrends (was 1000, see berkshire_budget);
@@ -127,8 +129,8 @@ DEFAULTS = {
 }
 
 
-SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom")
-MONTHLY = ("momentum", "trend", "tqqq", "resmom")   # ETF sleeves on a schedule: no stop-losses, no news gate
+SLEEVES = ("berkshire", "screener", "swing", "breakout", "momentum", "trend", "tqqq", "resmom", "noise")
+MONTHLY = ("momentum", "trend", "tqqq", "resmom", "noise")   # ETF sleeves on a schedule: no stop-losses, no news gate
 CORE = ("berkshire", "screener")
 
 
@@ -1016,6 +1018,100 @@ def resmom(cfg, alpaca, state, is_open):
     monthly_sleeve("resmom", cfg, alpaca, state, is_open)
 
 
+def last_buy_day(sleeve, symbol):
+    """Date of the newest filled buy of a symbol in a sleeve."""
+    days = [str(r.get("time", ""))[:10] for r in ledger() if r.get("sleeve") == sleeve and r.get("symbol") == symbol
+            and r.get("side") == "buy" and r.get("status") in ("filled", "partially_filled")]
+    return max(days) if days else today()
+
+
+def noise_bars(alpaca, n):
+    """Alpaca 1-minute QQQ bars (IEX), the last 45 calendar days up to now -> noiseband.days_from_bars rows (NY time)."""
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    start = (now_utc - datetime.timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rows, tok = [], ""
+    for _ in range(10):
+        q = ("/v2/stocks/QQQ/bars?timeframe=1Min&feed=iex&adjustment=raw&limit=10000&sort=asc&start=%s&end=%s%s"
+             % (start, now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"), "&page_token=" + tok if tok else ""))
+        d = alpaca.data(q) or {}
+        for b in d.get("bars") or []:
+            t = to_ny(datetime.datetime.strptime(b["t"][:19], "%Y-%m-%dT%H:%M:%S"))
+            if 9 * 60 + 30 <= t.hour * 60 + t.minute < 16 * 60:
+                rows.append((t.strftime("%Y-%m-%d"), t.hour * 60 + t.minute - 570,
+                             float(b["o"]), float(b["h"]), float(b["l"]), float(b["c"]), float(b.get("v") or 0)))
+        tok = d.get("next_page_token") or ""
+        if not tok:
+            break
+    return rows
+
+
+def noise(cfg, alpaca, state, is_open):
+    """QQQ noise-band day trades (stockbot/noiseband.py, backtest family M_vwap_lo): at 10:00, 10:30 ... 15:30 NY
+    long QQQ if the price is above the upper band and above today's VWAP, else flat. One decision per half hour
+    (remembered in state), out 10 minutes before the close, anything left from an earlier day is sold."""
+    name, budget = "noise", cfg["noise_budget"]
+    d = write_sleeve_config(name, cfg, budget, cash_buffer_pct=2, max_position_pct=100)
+    if not is_open:
+        return
+    n = ny_now()
+    day, mod = n.strftime("%Y-%m-%d"), n.hour * 60 + n.minute
+    try:
+        flat_at = to_ny(datetime.datetime.fromisoformat(CLOCK["next_close"])) - datetime.timedelta(minutes=10)
+    except Exception:
+        flat_at = n.replace(hour=15, minute=50, second=0, microsecond=0)
+    hold, realized = holdings(name)
+    have = hold.get("QQQ")
+
+    def sell(tag, why):
+        q = math.floor(have["qty"] * 1e6) / 1e6
+        write_portfolio(name, budget, d)
+        risk_and_place(name, [{"symbol": "QQQ", "side": "sell", "qty": ("%.6f" % q).rstrip("0").rstrip("."),
+                               "type": "market", "time_in_force": "day", "why": why,
+                               "client_order_id": "noise-%s-%s-QQQ-sell" % (day, tag)}],
+                       d, cfg, alpaca, {"QQQ": have["avg"]}, exit_orders=True)
+
+    if have and last_buy_day(name, "QQQ") < day:
+        return sell("left", "noise: still held from an earlier day")
+    if n >= flat_at:
+        if have:
+            sell("flat", "noise: out before the close")
+        return
+    mark = noiseband.latest_mark(mod)
+    key = "%s %d" % (day, mark or 0)
+    if mark is None or state.get("noise_mark") == key:
+        return
+    days = noiseband.days_from_bars(noise_bars(alpaca, n))
+    age = noiseband.age_seconds(days[-1], mod, n.second) if days and days[-1]["date"] == day else None
+    if age is None or age > 180:
+        log(name, "minute data missing or stale, no new buy (will retry)")
+        return
+    sig = noiseband.decide(days, mark)
+    if not sig:
+        log(name, "not enough minute history for the bands, staying flat")
+        state["noise_mark"] = key
+        return
+    hm = "%02d:%02d" % divmod(570 + mark, 60)
+    act = "buy" if sig["long"] and not have else "sell" if not sig["long"] and have else "hold" if have else "flat"
+    plan = load("noise_plan.json", {})
+    rows = plan.get("rows", []) if plan.get("day") == day else []
+    rows.append({"time": hm, "price": round(sig["price"], 2), "band": round(sig["ub"], 2), "vwap": round(sig["vwap"], 2),
+                 "long": sig["long"], "action": act})
+    save("noise_plan.json", {"time": stamp(), "day": day, "rows": rows})
+    log(name, hm, "price %.2f band %.2f vwap %.2f ->" % (sig["price"], sig["ub"], sig["vwap"]), act)
+    px = days[-1]["C"][days[-1]["last"]]
+    if act == "sell":
+        sell(hm.replace(":", ""), "noise: %s no longer above the band and VWAP" % hm)
+    elif act == "buy":
+        invest = (budget + realized) * 0.97          # 2% buffer in the risk check, plus room for rounding
+        if invest >= cfg["min_order_usd"]:
+            write_portfolio(name, budget, d)
+            risk_and_place(name, [{"symbol": "QQQ", "side": "buy", "notional": "%.2f" % min(invest, cfg["max_order_usd"]),
+                                   "type": "market", "time_in_force": "day", "why": "noise: above band and VWAP at %s" % hm,
+                                   "client_order_id": "noise-%s-%s-QQQ-buy" % (day, hm.replace(":", ""))}],
+                           d, cfg, alpaca, {"QQQ": px})
+    state["noise_mark"] = key
+
+
 # ---------- swing and breakout: daily-bar trades with stops ----------
 
 def market_filter(cfg):
@@ -1294,7 +1390,7 @@ def decisions_step(cfg, alpaca):
 def place(sleeve, o, cfg, alpaca, prices):
     body = {k: o[k] for k in ("symbol", "side", "qty", "notional", "type", "time_in_force", "limit_price",
                               "extended_hours") if k in o}
-    body["client_order_id"] = "%s-%s-%s-%s" % (sleeve, today(), o["symbol"], o["side"])
+    body["client_order_id"] = o.get("client_order_id") or "%s-%s-%s-%s" % (sleeve, today(), o["symbol"], o["side"])
     row = {"time": stamp(), "sleeve": sleeve, "symbol": o["symbol"], "side": o["side"],
            "notional": o.get("notional", ""), "want_qty": o.get("qty", ""), "qty": 0, "price": prices.get(o["symbol"], 0),
            "order_id": "", "status": "dry_run", "why": o.get("why", "")[:160],
@@ -1980,7 +2076,7 @@ def cycle(cfg, alpaca):
         status["errors"].append("stops: %s" % str(ex)[:200])
     for name, fn in (("berkshire", berkshire), ("screener", screener), ("swing", swing), ("breakout", breakout),
                      ("momentum", momentum), ("trend", trend), ("tqqq", tqqq),
-                     ("resmom", resmom)):
+                     ("resmom", resmom), ("noise", noise)):
         try:
             fn(cfg, alpaca, state, is_open)
         except Exception as ex:
